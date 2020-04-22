@@ -4,7 +4,10 @@
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-
+#include <errno.h>
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include
 #include "image.h"
 #include "surface.h"
 #include "world.h"
@@ -110,10 +113,29 @@ int main(int argc, char **argv) {
   //   -get the texture of the surface
 
   // these come from the server
-  int my_id;
+  int my_id = -1;
   Image* map_elevation;
   Image* map_texture;
   Image* my_texture_from_server;
+  
+  vehicle_texture = get_vehicle_texture(); // Da creare ancora la funzione
+  char* buf= (char*)malloc(sizeof(char)* bufl);
+  int ret;
+  int socketinf; // rivedere
+  struct sockaddr_in server_addr ={0};
+  socket_desc = socket(AF_INET, SOCK_STREAM,0);
+  ERROR_HELPER(socketinf,"Could not create a socket");
+  
+  server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS); // inserire nei define
+  server_addr.sin_family = AF_INET; //AF_INET is an address family that is used to designate the type of addresses that your socket can communicate with (in this case, Internet Protocol v4 addresses). When you create a socket, you have to specify its address family, and then you can only use addresses of that type with the socket. The Linux kernel, for example, supports 29 other address families such as UNIX
+  server_addr.sin_port= htons(UDP_PORT); // mettere nel define udp port 3000
+  
+  ret = connect(socketinf,(struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+  ERROR_HELPER(ret, "Could not create connection");
+  
+  
+  
+  
 
   // construct the world
   World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
