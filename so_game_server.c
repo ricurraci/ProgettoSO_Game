@@ -15,11 +15,26 @@
 #include "world.h"
 #include "vehicle.h"
 #include "world_viewer.h"
+#include "utils.h"
 
 #define UDP_PORT        3000
 #define TCP_PORT        3000
 #define MAX_CONN_QUEUE  20
 #define UDP_BUFLEN      512
+
+World world;
+
+Image* surface_texture;
+Image* surface_elevation;
+Image* vehicle_texture;
+
+int is_running;
+int socket_desc;
+int udp_socket;
+
+
+ListHead lista_socket;
+pthread_t udp_thread;
 
 
 int main(int argc, char **argv) {
@@ -75,6 +90,7 @@ int main(int argc, char **argv) {
 	ret = bind(socket_desc, (struct sockaddr *)&server_addr, sockaddr_len);
 	ERROR_HELPER(ret, "Cannot bind address to socket");
 
+	// listening
 	ret = listen(socket_desc, MAX_CONN_QUEUE);
 	ERROR_HELPER(ret, "Cannot listen on socket");
 
@@ -112,9 +128,11 @@ int main(int argc, char **argv) {
 	
 	is_running = 1;
 
-	// segnali da fare
+	// gestione segnali
+	signal(SIGINT,signal_handler);
 
-	List_init(&socket_list);
+
+	List_init(&lista_socket);
 
 	int id = 1;
 	int ret, client_desc;
@@ -123,9 +141,10 @@ int main(int argc, char **argv) {
 	thread_args* udp_args = (thread_args*)malloc(sizeof(thread_args));
 	udp_args->socket_desc = udp_socket;
 	udp_args->id = -1;
+
+	// UDP_HANDLER TODO
 	
-	ret = pthread_create(&udp_thread, NULL, udp_handler, (void*)udp_args);
-	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
+	// THREAD TODO
 
 	int sockaddr_len = sizeof(struct sockaddr_in);
 
@@ -143,7 +162,28 @@ int main(int argc, char **argv) {
 		if(client_desc == -1 && run_server == 0) break;    // server is closing
 		ERROR_HELPER(client_desc, "Impossibile aprire la socket per le connessioni");
 
-		// gestione veicoli TODO		
+		// gestione veicoli
+		Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
+		Vehicle_init(vehicle, &world, id, vehicle_texture);
+		World_addVehicle(&world, vehicle);
+		
+		add_servsock(&lista_socket , client_desc);	
+
+		pthread_t client_thread;
+		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
+		args->socket_desc = client_desc;
+		
+		// assegnazione dell'id al client
+		args->id = id; 	
+
+		update_info(&world, id, 1);
+		
+		id++;
+		
+		// TCP_CLIENT_HANDLER TODO
+
+		// THREAD TODO
+
 
 
 	}
@@ -199,3 +239,30 @@ int main(int argc, char **argv) {
   return 0;             
 }
 
+void signal_handler(int sig){
+	int ret1, ret2
+	signal(SIGINT, SIG_DFL);
+	is_running = 0;
+	sleep(1);
+	
+	if(DEBUG){
+		fprintf(stdout,"\Chiudo il server...\n");
+		fflush(stdout);
+	}
+	
+	int ret = pthread_cancel(udp_thread);
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore nella cancellazione del thread udp"); 
+	
+	Server_socketClose(&socket_list);
+	listfree_serv(&socket_list);
+	
+	ret1 = close(udp_socket);
+	if ( ret1==-1 ){
+		ERROR_HELPER( -1,"Errore nella chiusura della socket");
+	}
+	ret1 = close(socket_desc);
+	if ( ret1==-1 ){
+		ERROR_HELPER( -1,"Errore nella chiusura della socket");
+	}
+	
+}
