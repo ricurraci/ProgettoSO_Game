@@ -112,3 +112,16 @@ void update_info(World *world, int id, int flag) {
 	fflush(stdout);
 	}
 }
+
+ImagePacket* image_pack_in(Type type, Image *image, int id) {  // temporaneo so_game_protocol.h nell'include, aggiungerlo dopo
+      ImagePacket *packet = (ImagePacket*)malloc(sizeof(ImagePacket));
+      PacketHeader header;
+      header.type= type;
+      packet->header = header;
+      packet->id = id;
+      packet->image = image;
+    
+      return packet;
+}
+      
+
