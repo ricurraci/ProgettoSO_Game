@@ -16,11 +16,12 @@
 #include "vehicle.h"
 #include "world_viewer.h"
 #include "utils.h"
+#include "so_game_protocol.h"
 
 #define UDP_PORT        3000
 #define TCP_PORT        3000
 #define MAX_CONN_QUEUE  20
-#define UDP_BUFLEN      512
+#define BUFLEN          1000000
 
 World world;
 
@@ -31,7 +32,6 @@ Image* vehicle_texture;
 int is_running;
 int socket_desc;
 int udp_socket;
-
 
 ListHead lista_socket;
 pthread_t udp_thread;
@@ -49,7 +49,7 @@ int main(int argc, char **argv) {
 
   	// INIZIALIZZAZIONE UDP SERVER
 
-  	struct sockaddr_in serv_in = {0};
+  	struct sockaddr_in serv_in;
   	int sock = socket(AF_INET, SOCK_DGRAM,0);
 
   	memset((char *) serv_in, 0, sizeof(*serv_in));
@@ -68,7 +68,7 @@ int main(int argc, char **argv) {
 
 	// INIZIALIZZAZIONE TCP SERVER
 
-	struct sockaddr_in server_addr = {0};
+	struct sockaddr_in server_addr={0];
 	int sockaddr_len = sizeof(struct sockaddr_in);
 
 	// preparo la socket al listening
@@ -139,12 +139,12 @@ int main(int argc, char **argv) {
   
 	// creo i thread per udp
 	thread_args* udp_args = (thread_args*)malloc(sizeof(thread_args));
-	udp_args->socket_desc = udp_socket;
+	udp_args->socket_desc = sock;
 	udp_args->id = -1;
 
-	// UDP_FUNCTION TODO
-	
-	// THREAD TODO
+	// UDP_FUNCTION
+	ret = pthread_create(&udp_thread, NULL, udp_function, (void*)udp_args);
+	PTHREAD_ERROR_HELPER(ret, "Impossibile creare il thread");
 
 	int sockaddr_len = sizeof(struct sockaddr_in);
 
@@ -180,9 +180,12 @@ int main(int argc, char **argv) {
 		
 		id++;
 		
-		// TCP_CLIENT TODO
+		// TCP_CLIENT
+		ret = pthread_create(&client_thread, NULL, tcp_function_client, (void*)args);
+		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
-		// THREAD TODO
+		ret = pthread_detach(client_thread); 
+	    PTHREAD_ERROR_HELPER(ret, "Could not detach the thread");
 
 
 
@@ -246,15 +249,15 @@ void signal_handler(int sig){
 	sleep(1);
 	
 	if(DEBUG){
-		fprintf(stdout,"\Chiudo il server...\n");
+		fprintf(stdout,"Chiudo il server...\n");
 		fflush(stdout);
 	}
 	
 	int ret = pthread_cancel(udp_thread);
 	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore nella cancellazione del thread udp"); 
 	
-	Server_socketClose(&socket_list);
-	listfree_serv(&socket_list);
+	Server_socketClose(&lista_socket);
+	listfree_serv(&lista_socket);
 	
 	ret1 = close(udp_socket);
 	if ( ret1==-1 ){
@@ -266,3 +269,118 @@ void signal_handler(int sig){
 	}
 	
 }
+
+// funzione per udp
+
+void *udp_function(void *arg) {
+	
+	struct sockaddr_in udp_client_addr;
+	int udp_socket = ((thread_args*)arg)->socket_desc;
+	
+	int ret;
+	char buffer[BUFLEN];
+	
+	while(is_running) {
+		ret = udp_receive(udp_socket, &udp_client_addr, buffer);
+		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
+		
+		world_update(vehicle_packet, &world);
+		WorldUpdatePacket* world_packet = world_update_init(&world);		
+		
+		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
+		
+	}
+	pthread_exit(NULL);
+}
+
+
+// funzione per tcp
+
+void *tcp_function_client(void *arg){
+
+	thread_args* args = (thread_args*)arg;
+	
+	int socket = args->socket_desc;
+	char buf[BUFLEN];
+    int run = 1;
+    int client_id = args->id;
+
+    while(run && is_running) {
+
+		int ret = tcp_receive(socket , buf);
+
+		if(ret == -1){
+			if(is_running == 0){ // server sta chiudendo
+				run = 0;
+				break;
+			}
+			ERROR_HELPER(ret, "Impossibile ricevere dalla socket tcp");
+		}
+		
+		else if(!ret) run = 0; // client disconnesso
+		
+		else {
+
+			PacketHeader* packet = (PacketHeader*) Packet_deserialize(buf , ret);
+			
+			switch(packet->type) {
+				
+				case GetId: { 
+					IdPacket* id_packet = id_packet_init(GetId, client_id);
+					tcp_send(socket, &id_packet->header); 
+					free(id_packet);
+					break;
+				}
+				
+				case GetElevation: {  
+					ImagePacket* elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
+					tcp_send(socket, &elevation_packet->header);
+					free(elevation_packet);
+					break;
+				}
+				
+				case GetTexture: {
+					
+					if(!((ImagePacket*) packet)->id){  
+						ImagePacket* texture_packet = image_packet_init(PostTexture, surface_texture , 0);
+						tcp_send(socket, &texture_packet->header);
+					}
+					else { 
+						Vehicle *v = World_getVehicle(&world, ((ImagePacket*) packet)->id);
+						ImagePacket* texture_packet = image_packet_init(PostTexture, v->texture, ((ImagePacket*) packet)->id);
+						tcp_send(socket, &texture_packet->header);
+					}
+					break;			
+				}
+				
+				case PostTexture: {
+					Vehicle *v = World_getVehicle(&world, ((ImagePacket*) packet)->id);
+					v->texture = ((ImagePacket*) packet)->image;	
+					break;
+				}
+
+				default: break;
+			}
+		}
+	}	
+
+	Vehicle *v = World_getVehicle(&world, args->id);
+
+	World_detachVehicle(&world, v);
+	update_info(&world, args->id, 0);
+	Vehicle_destroy(v);
+	free(args);
+	
+	if(is_running) {
+
+		ServerListItem* to_remove = get_servsock(&lista_socket,socket);
+		List_detach(&lista_socket, (ListItem*)to_remove);
+
+		int ret = close(socket);
+		ERROR_HELPER(ret, "Cannot close socket");
+    }
+    	
+    pthread_exit(NULL);
+
+}
+
