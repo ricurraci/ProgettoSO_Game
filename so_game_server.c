@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 	udp_args->socket_desc = udp_socket;
 	udp_args->id = -1;
 
-	// UDP_HANDLER TODO
+	// UDP_FUNCTION TODO
 	
 	// THREAD TODO
 
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
 		
 		id++;
 		
-		// TCP_CLIENT_HANDLER TODO
+		// TCP_CLIENT TODO
 
 		// THREAD TODO
 
