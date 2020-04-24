@@ -18,8 +18,7 @@ int add_servsock(ListHead* l, int sock);
 
 void listFree_serv(ListHead* l);
 
-void close_sock(int fd);
-
+void update_info(World *world, int id, int flag)
 
 
 #endif
