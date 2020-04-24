@@ -119,20 +119,56 @@ int main(int argc, char **argv) {
   Image* my_texture_from_server;
   
   vehicle_texture = get_vehicle_texture(); // Da creare ancora la funzione
-  char* buf= (char*)malloc(sizeof(char)* bufl);
+  char* buf= (char*)malloc(sizeof(char)* bufl); // cambiale il bufl
   int ret;
-  int socketinf; // rivedere
+  int sockettcp; // rivedere
   struct sockaddr_in server_addr ={0};
-  socket_desc = socket(AF_INET, SOCK_STREAM,0);
-  ERROR_HELPER(socketinf,"Could not create a socket");
+  int socketudp;
+  
+  // TCP socket
+  sockettcp = socket(AF_INET, SOCK_STREAM,0);
+  ERROR_HELPER(sockettcp,"Could not create a socket");
   
   server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS); // inserire nei define
   server_addr.sin_family = AF_INET; //AF_INET is an address family that is used to designate the type of addresses that your socket can communicate with (in this case, Internet Protocol v4 addresses). When you create a socket, you have to specify its address family, and then you can only use addresses of that type with the socket. The Linux kernel, for example, supports 29 other address families such as UNIX
   server_addr.sin_port= htons(UDP_PORT); // mettere nel define udp port 3000
   
-  ret = connect(socketinf,(struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+  ret = connect(sockettcp,(struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
   ERROR_HELPER(ret, "Could not create connection");
   
+  clear(buf);
+  tcp_send(sockettcp,&id_packet->header); // richiesta id 
+  ret= tcp_receive(sockettcp,buf); // riceve id
+  ERROR_HELPER(ret,"Cannot receive from tcp socket");
+  
+  Packet_free(&id_packet->header); // liberare l'header del pacchetto per riusarlo per ricevere l'id
+  
+  id_packet=(IdPacket*)Packet_deserialize(buf, ret); // id letto dal buffer e salvato su idpacket con deserialize
+  
+  my_id= id_packet->id
+  //if(DEBUG) printf("Id received : &d\n", my_id);
+  Packet_free(&id_packet->header);
+  
+  // richiesta del vehicle texture
+  Image Packet* vehicleTexture_pack
+  if(vehicle_texture) {    // inizializzato prima come image*
+      vehicleTexture_pack= image_pack_in(PostTexture, vehicle_texture, my_id);
+      tcp_send(sockettcp , &vehicleTexture_pack->header);} // puoi scegliere una tua immagine
+      else {
+		  vehicleTexture_pack = image_pack_in(GetTexture, NULL, my_id); // immagine di default 
+          tcp_send(sockettcp , &vehicleTexture_pack->header);
+          ret = tcp_receive(sockettcp, buf);
+          ERROR_HELPER(ret, "Cannot receive from tcp socket");
+          Packet_free(&vehicleTexture_pack->header);
+          vehicleTexture_pack = (ImagePacket*)Packet_deserialize(buf, ret);
+          if (vehicleTexture_pack->header).type != PostTexture){
+			  fprintf(stderr,"Error: Image corrupted");
+			  exit(EXIT_FAILURE);
+		  }
+		  else if (vehicleTexture_pack->header).type != vehicleTexture_pack->id <=0){
+			  fprintf(stderr,"Error: header without id"
+		  }
+		  
   
   
   
