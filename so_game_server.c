@@ -24,7 +24,6 @@
 #define BUFLEN          1000000
 
 World world;
-
 Image* surface_texture;
 Image* surface_elevation;
 Image* vehicle_texture;
@@ -123,7 +122,7 @@ int main(int argc, char **argv) {
 	  printf("Fail! \n");
 	}
 
-
+	// construct the world
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
 	
 	is_running = 1;
@@ -142,7 +141,7 @@ int main(int argc, char **argv) {
 	udp_args->socket_desc = sock;
 	udp_args->id = -1;
 
-	// UDP_FUNCTION
+	// UDP_FUNCTION fuori il main, gestisce i pacchetti udp
 	ret = pthread_create(&udp_thread, NULL, udp_function, (void*)udp_args);
 	PTHREAD_ERROR_HELPER(ret, "Impossibile creare il thread");
 
@@ -167,6 +166,7 @@ int main(int argc, char **argv) {
 		Vehicle_init(vehicle, &world, id, vehicle_texture);
 		World_addVehicle(&world, vehicle);
 		
+		// funzione nelle utils
 		add_servsock(&lista_socket , client_desc);	
 
 		pthread_t client_thread;
@@ -176,11 +176,12 @@ int main(int argc, char **argv) {
 		// assegnazione dell'id al client
 		args->id = id; 	
 
+		// funzione nelle utils, si occupa di aggiornare la lista di veicoli connessi
 		update_info(&world, id, 1);
 		
 		id++;
 		
-		// TCP_CLIENT
+		// TCP_CLIENT funzione fuori dal main
 		ret = pthread_create(&client_thread, NULL, tcp_function_client, (void*)args);
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
@@ -191,9 +192,19 @@ int main(int argc, char **argv) {
 
 	}
 
-	// GESTIONE DELLA FINE todo
+	// GESTIONE DELLA FINE
 
+	ret = pthread_join(udp_thread, NULL);
+	PTHREAD_ERROR_HELPER(ret, "Impossibile fare il join");
+	
+	// cleanup
 
+	World_destroy(&world);
+	Image_free(surface_elevation);
+	Image_free(surface_texture);
+	Image_free(vehicle_texture);
+	free(client_addr);
+	free(udp_args);
 
 
 
@@ -202,17 +213,6 @@ int main(int argc, char **argv) {
 
 
   // not needed here
-  //   // construct the world
-  // World_init(&world, surface_elevation, surface_texture,  0.5, 0.5, 0.5);
-
-  // // create a vehicle
-  // vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-  // Vehicle_init(vehicle, &world, 0, vehicle_texture);
-
-  // // add it to the world
-  // World_addVehicle(&world, vehicle);
-
-
   
   // // initialize GL
   // glutInit(&argc, argv);
@@ -232,13 +232,6 @@ int main(int argc, char **argv) {
   // // run the main GL loop
   // glutMainLoop();
 
-  // // check out the images not needed anymore
-  // Image_free(vehicle_texture);
-  // Image_free(surface_texture);
-  // Image_free(surface_elevation);
-
-  // // cleanup
-  // World_destroy(&world);
   return 0;             
 }
 
