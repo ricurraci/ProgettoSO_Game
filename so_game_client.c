@@ -165,9 +165,42 @@ int main(int argc, char **argv) {
 			  fprintf(stderr,"Error: Image corrupted");
 			  exit(EXIT_FAILURE);
 		  }
-		  else if (vehicleTexture_pack->header).type != vehicleTexture_pack->id <=0){
-			  fprintf(stderr,"Error: header without id"
+          else if (vehicleTexture_pack->header).type != vehicleTexture_pack->id <=0){
+			  fprintf(stderr,"Error: header without id");
 		  }
+ // richiesta elevation map
+ clear(buf);
+ ImagePacket* elevationmap_packet= image_packet_in((GetElevation, NULL, 0);
+ tcp_send(sockettcp, &elevationmap_packet->header); // vedere elevationmap
+ 
+ ret = tcp_receive(sockettcp , buf);
+ //ERROR_HELPER(ret, "Cannot receive from tcp socket");
+
+
+
+ Packet_free(&elevationmap_packet->header);
+ elevationmap_packet= (ImagePacket*)Packet_deserialize(buf, ret);
+   if ( (elevatiomap_packet->id != 0) {
+          fprintf(stderr, "Error: Image problem with id");
+          exit(EXIT_FAILURE);
+    }
+   map_elevation = elevationmap_packet->image; // include verifica
+
+ // richiesta texture superficie
+ clear(buf); // ogni volta che cambia pacchetto
+ ImagePacket* surftexture_packet = image_packet_init(GetTexture, NULL , 0); // vedere posizione
+ tcp_send(sockettcp, &surftexture_packet->header);
+ 
+ ret = tcp_receive(sockettcp , buf);
+ ERROR_HELPER(ret, "Cannot receive from tcp socket");
+ Packet_free(&surftexture_packet->header); // libero per riutilizarlo
+ 
+ surftexture_packet = (ImagePacket*)Packet_deserialize(buf , ret);
+  if ((surftexture_packet->header).type != PostTexture || surftexture_packet->id != 0)  {
+      fprintf(stderr, "Error: image corrupted");
+      exit(EXIT_FAILURE);
+    } //rivedere
+
 		  
   
   
