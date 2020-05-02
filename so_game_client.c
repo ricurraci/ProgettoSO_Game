@@ -24,6 +24,8 @@ Vehicle* vehicle; // The vehicle
 int udp_socket;
 pthread_t runner_thread;
 
+/**
+
 void keyPressed(unsigned char key, int x, int y)
 {
   switch(key){
@@ -95,6 +97,7 @@ void idle(void) {
   vehicle->translational_force_update *= 0.999;
   vehicle->rotational_force_update *= 0.7;
 }
+**/
 
 int main(int argc, char **argv) {
   if (argc<3) {

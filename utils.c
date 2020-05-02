@@ -13,40 +13,24 @@
 #include "utils.h"
 #include "linked_list.h"
 
-
-
-
-
-
 // FUNZIONI AUSILIARIE
 
-void signal_handler(int sig){
-	int ret1, ret2
-	signal(SIGINT, SIG_DFL);
-	is_running = 0;
-	sleep(1);
-	
-	if(DEBUG){
-		fprintf(stdout,"Chiudo il server...\n");
-		fflush(stdout);
+void Server_socketClose(ListHead* l){
+	if(l == NULL || l->first == NULL) return;
+	ListItem* item = l->first;
+	int i;
+	for(i = 0; i < l->size; i++) {
+
+		ServerListItem* v = (ServerListItem*) item;
+		int client_desc = v->info;
+		
+		//if(DEBUG) fprintf(stdout,"closing socket...%d\n", client_desc);
+		//fflush(stdout);
+		closeSocket(client_desc);
+		item = item->next;
 	}
-	
-	int ret = pthread_cancel(udp_thread);
-	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore nella cancellazione del thread udp"); 
-	
-	Server_socketClose(&lista_socket);
-	listfree_serv(&lista_socket);
-	
-	ret1 = close(udp_socket);
-	if ( ret1==-1 ){
-		ERROR_HELPER( -1,"Errore nella chiusura della socket");
-	}
-	ret1 = close(socket_desc);
-	if ( ret1==-1 ){
-		ERROR_HELPER( -1,"Errore nella chiusura della socket");
-	}
-	
 }
+
 
 // funzione per udp
 

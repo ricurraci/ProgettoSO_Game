@@ -39,6 +39,37 @@ pthread_t udp_thread;
 
 
 
+void signal_handler(int sig){
+	int ret1, ret2;
+	signal(SIGINT, SIG_DFL);
+	is_running = 0;
+	sleep(1);
+	
+	if(DEBUG){
+		fprintf(stdout,"Chiudo il server...\n");
+		fflush(stdout);
+	}
+	
+	int ret = pthread_cancel(udp_thread);
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore nella cancellazione del thread udp"); 
+	
+	Server_socketClose(&lista_socket);
+	listFree_serv(&lista_socket);
+	
+	ret1 = close(udp_socket);
+	if ( ret1==-1 ){
+		ERROR_HELPER( -1,"Errore nella chiusura della socket");
+	}
+	ret1 = close(socket_desc);
+	if ( ret1==-1 ){
+		ERROR_HELPER( -1,"Errore nella chiusura della socket");
+	}
+	
+}
+
+
+
+
 int main(int argc, char **argv) {
 
 	if (argc<3) {
@@ -241,5 +272,4 @@ int main(int argc, char **argv) {
 
 
 }
-
 

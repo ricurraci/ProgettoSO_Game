@@ -53,9 +53,9 @@ int add_servsock(ListHead* l, int sock);
 
 void listFree_serv(ListHead* l);
 
-void update_info(World *world, int id, int flag);
+void Server_socketClose(ListHead* l);
 
-void signal_handler(int sig);
+void update_info(World *world, int id, int flag);
 
 void *udp_function(void *arg);
 
