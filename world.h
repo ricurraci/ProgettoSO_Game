@@ -4,6 +4,7 @@
 #include "surface.h"
 #include "vehicle.h"
 #include "linked_list.h"
+#include "so_game_protocol.h"
 
 typedef struct World {
   ListHead vehicles; // list of vehicles
@@ -25,6 +26,10 @@ int World_init(World* w,
 void World_destroy(World* w);
 
 void World_update(World* w);
+
+WorldUpdatePacket* world_update_init(World *world);
+
+WorldUpdatePacket* world_update_init(World *world);
 
 Vehicle* World_getVehicle(World* w, int vehicle_id);
 

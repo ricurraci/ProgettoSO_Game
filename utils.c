@@ -15,6 +15,33 @@
 
 // FUNZIONI AUSILIARIE
 
+void world_update(VehicleUpdatePacket *vehicle_packet, World *world) {
+	
+	int id = vehicle_packet->id;
+		
+	Vehicle* v = World_getVehicle(world, id);
+	v->rotational_force_update = vehicle_packet->rotational_force;
+	v->translational_force_update = vehicle_packet->translational_force; 
+
+	World_update(world);
+}
+
+void closeSocket(int fd) {
+	int ret;
+		
+	if (fd >= 0) {
+	   if (shutdown(fd, SHUT_RDWR) < 0){ // terminate the 'reliable' delivery, SHUT_RDWR makes impossible to receive and send on socket
+		 if (errno != ENOTCONN && errno != EINVAL){
+			ERROR_HELPER(-1,"Error: shutdown faild");
+		 }
+	   }
+			
+	  if (close(fd) < 0) // finally call close()
+         ERROR_HELPER( -1,"Error: close socket failed");
+   }
+}
+
+
 void Server_socketClose(ListHead* l){
 	if(l == NULL || l->first == NULL) return;
 	ListItem* item = l->first;
@@ -32,119 +59,8 @@ void Server_socketClose(ListHead* l){
 }
 
 
-// funzione per udp
-
-void *udp_function(void *arg) {
-	
-	struct sockaddr_in udp_client_addr;
-	int udp_socket = ((thread_args*)arg)->socket_desc;
-	
-	int ret;
-	char buffer[BUFLEN];
-	
-	while(is_running) {
-		ret = udp_receive(udp_socket, &udp_client_addr, buffer);
-		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
-		
-		world_update(vehicle_packet, &world);
-		WorldUpdatePacket* world_packet = world_update_init(&world);		
-		
-		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
-		
-	}
-	pthread_exit(NULL);
-}
 
 
-// funzione per tcp
-
-void *tcp_function_client(void *arg){
-
-	thread_args* args = (thread_args*)arg;
-	
-	int socket = args->socket_desc;
-	char buf[BUFLEN];
-    int run = 1;
-    int client_id = args->id;
-
-    while(run && is_running) {
-
-		int ret = tcp_receive(socket , buf);
-
-		if(ret == -1){
-			if(is_running == 0){ // server sta chiudendo
-				run = 0;
-				break;
-			}
-			ERROR_HELPER(ret, "Impossibile ricevere dalla socket tcp");
-		}
-		
-		else if(!ret) run = 0; // client disconnesso
-		
-		else {
-
-			PacketHeader* packet = (PacketHeader*) Packet_deserialize(buf , ret);
-			
-			switch(packet->type) {
-				
-				case GetId: { 
-					IdPacket* id_packet = id_packet_init(GetId, client_id);
-					tcp_send(socket, &id_packet->header); 
-					free(id_packet);
-					break;
-				}
-				
-				case GetElevation: {  
-					ImagePacket* elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
-					tcp_send(socket, &elevation_packet->header);
-					free(elevation_packet);
-					break;
-				}
-				
-				case GetTexture: {
-					
-					if(!((ImagePacket*) packet)->id){  
-						ImagePacket* texture_packet = image_packet_init(PostTexture, surface_texture , 0);
-						tcp_send(socket, &texture_packet->header);
-					}
-					else { 
-						Vehicle *v = World_getVehicle(&world, ((ImagePacket*) packet)->id);
-						ImagePacket* texture_packet = image_packet_init(PostTexture, v->texture, ((ImagePacket*) packet)->id);
-						tcp_send(socket, &texture_packet->header);
-					}
-					break;			
-				}
-				
-				case PostTexture: {
-					Vehicle *v = World_getVehicle(&world, ((ImagePacket*) packet)->id);
-					v->texture = ((ImagePacket*) packet)->image;	
-					break;
-				}
-
-				default: break;
-			}
-		}
-	}	
-
-	Vehicle *v = World_getVehicle(&world, args->id);
-
-	World_detachVehicle(&world, v);
-	update_info(&world, args->id, 0);
-	Vehicle_destroy(v);
-	free(args);
-	
-	if(is_running) {
-
-		ServerListItem* to_remove = get_servsock(&lista_socket,socket);
-		List_detach(&lista_socket, (ListItem*)to_remove);
-
-		int ret = close(socket);
-		ERROR_HELPER(ret, "Cannot close socket");
-    }
-    	
-    pthread_exit(NULL);
-
-}
 
 int udp_server_setup(struct sockaddr_in *si_me) {
 
@@ -175,6 +91,13 @@ int add_servsock(ListHead* l, int sock){
 	ServerListItem* item = ServerListItem_init(sock);	
 	ListItem* result = List_insert(l, l->last, (ListItem*)item);
 	return ((ServerListItem*)result)->info;
+}
+
+ServerListItem* ServerListItem_init(int sock){
+	ServerListItem* item = (ServerListItem*) malloc(sizeof(ServerListItem));
+	item->info = sock;
+	item->list.prev = NULL;
+	item->list.next = NULL;
 }
 
 ServerListItem* get_servsock(ListHead* l, int sock){

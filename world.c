@@ -9,6 +9,8 @@
 #include <sys/time.h>
 #include <assert.h>
 
+#include "so_game_protocol.h"
+
 void World_destroy(World* w) {
   Surface_destroy(&w->ground);
   ListItem* item=w->vehicles.first;
@@ -19,6 +21,40 @@ void World_destroy(World* w) {
     free(v);
   }
 }
+
+// aggiunta
+
+WorldUpdatePacket* world_update_init(World *world) {
+    
+    WorldUpdatePacket* world_packet = (WorldUpdatePacket*)malloc(sizeof(WorldUpdatePacket));
+  PacketHeader w_head;
+  w_head.type = WorldUpdate;
+  world_packet->header = w_head;
+  
+  
+  world_packet->num_vehicles = world->vehicles.size;
+  
+  ClientUpdate* update_block = (ClientUpdate*)malloc(world_packet->num_vehicles*sizeof(ClientUpdate));
+  
+  ListItem *item = world->vehicles.first;
+
+  int i;
+  for(i=0; i<world->vehicles.size; i++) {
+
+    Vehicle *v = (Vehicle*) item;
+    update_block[i].id = v->id;
+    update_block[i].x = v->x;
+    update_block[i].y = v->y;     
+    update_block[i].theta = v->theta;
+
+    item = item->next;
+  }
+    
+  world_packet->updates = update_block;
+  return world_packet;
+}
+
+
 
 int World_init(World* w,
 	       Image* surface_elevation,

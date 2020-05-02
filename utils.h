@@ -49,6 +49,10 @@ typedef struct {
   World *world;
 } UpdaterArgs;
 
+void world_update(VehicleUpdatePacket *vehicle_packet, World *world);
+
+ServerListItem* ServerListItem_init(int sock);
+
 int add_servsock(ListHead* l, int sock);
 
 void listFree_serv(ListHead* l);
@@ -56,10 +60,6 @@ void listFree_serv(ListHead* l);
 void Server_socketClose(ListHead* l);
 
 void update_info(World *world, int id, int flag);
-
-void *udp_function(void *arg);
-
-void *tcp_function_client(void *arg);
 
 int udp_server_setup(struct sockaddr_in *si_me);
 
