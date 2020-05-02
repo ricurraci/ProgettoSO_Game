@@ -123,5 +123,140 @@ ImagePacket* image_pack_in(Type type, Image *image, int id) {  // temporaneo so_
     
       return packet;
 }
+
+int udp_client_setup(struct sockaddr_in *si_other) { //temporaneo
+	
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    
+    si_other->sin_family = AF_INET;
+    si_other->sin_port = htons(UDP_PORT);
+    si_other->sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
+
+	return sock;
+}
+
+VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotational_force, float translational_force) {
+    
+    VehicleUpdatePacket *vehicle_packet = (VehicleUpdatePacket*) // preso da vehicle default malloc(sizeof(VehicleUpdatePacket));
+	PacketHeader v_head;
+	v_head.type = VehicleUpdate;
+
+	vehicle_packet->header = v_head;
+	vehicle_packet->id = arg_id;
+	vehicle_packet->rotational_force = (World_getVehicle(world, arg_id))->rotational_force_update;
+	vehicle_packet->translational_force = (World_getVehicle(world, arg_id))->translational_force_update;
+
+	return vehicle_packet;
+} // packet.c 
+
+void udp_send(int socket, struct sockaddr_in *si, const PacketHeader* h) {
+
+	char buffer[BUFLEN];
+	char size = 0;
+
+	switch(h->type) {
+		case VehicleUpdate:
+		{
+			VehicleUpdatePacket *vup = (VehicleUpdatePacket*) h;
+			size = Packet_serialize(buffer, &vup->header);
+			break;
+		}
+		case WorldUpdate: 
+		{
+			WorldUpdatePacket *wup = (WorldUpdatePacket*) h;
+			size = Packet_serialize(buffer, &wup->header);
+			break;
+		}
+	}
+	
+	int ret = sendto(socket, buffer, size , 0 , (struct sockaddr *) si, sizeof(*si));
+	ERROR_HELPER(ret, "Cannot send message through udp socket");
+} // socket.c
+
+int udp_receive(int socket, struct sockaddr_in *si, char *buffer) {
+
+	ssize_t slen = sizeof(*si);
+
+	int ret = recvfrom(socket, buffer, BUFLEN, 0, (struct sockaddr *) si, (socklen_t*) &slen);
+	ERROR_HELPER(ret, "Cannot receive from udp socket");
+
+	return ret;
+}// socket.c
+
+int udp_client_setup(struct sockaddr_in *si_other) {
+	
+    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    
+    si_other->sin_family = AF_INET;
+    si_other->sin_port = htons(UDP_PORT);
+    si_other->sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
+
+	return sock;
+} // socket.c
+
+void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world) {
+
+	int numb_of_vehicles = deserialized_wu_packet->num_vehicles;
+	
+	if(numb_of_vehicles > world->vehicles.size) {
+		int i;
+		for(i=0; i<numb_of_vehicles; i++) {
+			int v_id = deserialized_wu_packet->updates[i].id;
+			if(World_getVehicle(world, v_id) == NULL) {
+	
+				char buffer[BUFLEN];
+
+				ImagePacket* vehicle_packet = image_packet_init(GetTexture, NULL, v_id);
+    			tcp_send(socket_desc , &vehicle_packet->header);
+    			
+				char msg[2048];
+				sprintf(msg, "./image_%d", v_id);
+
+				int ret = tcp_receive(socket_desc , buffer);
+				ERROR_HELPER(ret, "Cannot receive from tcp socket");
+    			vehicle_packet = (ImagePacket*) Packet_deserialize(buffer, ret);
+
+
+				Vehicle *v = (Vehicle*) malloc(sizeof(Vehicle));
+				Vehicle_init(v,world, v_id, vehicle_packet->image);
+				World_addVehicle(world, v);
+
+				//Image_save(vehicle_packet->image, msg);
+				update_info(world, v_id, 1);
+				
+			} 
+		}
+	}
+	
+	else if(numb_of_vehicles < world->vehicles.size) {
+		ListItem* item=world->vehicles.first;
+		int i, find = 0;
+		while(item){
+			Vehicle* v = (Vehicle*)item;
+			int vehicle_id = v->id;
+			for(i=0; i<numb_of_vehicles; i++){
+				if(deserialized_wu_packet->updates[i].id == vehicle_id)
+					find = 1;
+			}
+
+			if (find == 0) {
+				World_detachVehicle(world, v);
+				update_info(world, vehicle_id, 0);
+			}
+
+			find = 0;
+			item=item->next;
+		}
+	}
+
+	int i;
+	for(i = 0 ; i < world->vehicles.size ; i++) {
+		Vehicle *v = World_getVehicle(world, deserialized_wu_packet->updates[i].id);
+		
+		v->x = deserialized_wu_packet->updates[i].x;
+		v->y = deserialized_wu_packet->updates[i].y;
+		v->theta = deserialized_wu_packet->updates[i].theta;
+	}
+} // clientkit.c
       
 
