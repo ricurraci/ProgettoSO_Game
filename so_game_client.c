@@ -200,7 +200,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Error: image corrupted");
       exit(EXIT_FAILURE);
     } //rivedere
-
+ map_texture = surfaceTexture_packet->image;
 		  
   
   
@@ -220,9 +220,122 @@ int main(int argc, char **argv) {
   // request the texture and add the player to the pool
   /*FILLME*/
 
+ // Parte UDP
+ pthread_t connection_checker;
+
+ UpdaterArgs runner_args = {
+		.run=1,
+		.id = my_id,
+		.tcp_desc = socket_desc,
+		.texture = vehicle_texture,
+		.vehicle = vehicle,
+		.world = &world
+	}; // in clientkit.h vedere 
+  ret = pthread_create(&runner_thread, NULL , updater_thread, &runner_args);
+  ret = pthread_create(&connection_checker, NULL , connection_checker_thread, &runner_args);
+
+ 
+ 
+       
+
+ 
   WorldViewer_runGlobal(&world, vehicle, &argc, argv);
+  runner_args.run = 0;
+  ret=pthread_join(runner_thread, NULL);
+  
+  
 
   // cleanup
   World_destroy(&world);
+  ret = close(udp_socket); //cambio var
+  ret= close(sockettcp);
+  Packet_free(&vehicleTexture_packet->header);
+  Packet_free(&elevationImage_packet->header);
+  Packet_free(&surfaceTexture_packet->header);
+  Vehicle_destroy(vehicle);
+  return EXIT_SUCCESS;
+
+}
+void *updater_thread(void *args) {
+	
+	UpdaterArgs* arg = (UpdaterArgs*) args;
+
+	// variabili
+	int id = arg->id;
+	World *world = arg->world;
+	Vehicle *vehicle = arg->vehicle;
+
+	// creazione socket udp
+	struct sockaddr_in si_other;
+	udp_socket = udp_client_setup(&si_other); // socket.c
+
+    int ret;
+
+	char buffer[BUFLEN];
+    
+	while(arg->run) {
+
+		float r_f_update = vehicle->rotational_force_update;
+		float t_f_update = vehicle->translational_force_update;
+
+		// create vehicle_packet
+		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(world, id, r_f_update, t_f_update);
+		udp_send(udp_socket, &si_other, &vehicle_packet->header);
+		
+        clear(buffer); 	// stesso buffer per ricevere
+		
+		ret = udp_receive(udp_socket, &si_other, buffer);
+		WorldUpdatePacket* wu_packet = (WorldUpdatePacket*)Packet_deserialize(buffer, ret);		
+		client_update(wu_packet, arg->tcp_desc, world);
+ 		
+		usleep(30000);
+	}
+	return EXIT_SUCCESS;
+}
+
+void *connection_checker_thread(void* args){
+	UpdaterArgs* arg = (UpdaterArgs*) args;
+	int tcp_desc = arg->tcp_desc;
+	int ret;
+	char c;
+	
+	while(1){
+
+		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // this only checks if recv returns 0, without removing data from queue
+		if(ret < 0 && errno == EINTR) continue;
+		ERROR_HELPER(ret , "<Errore in connection checker"); 
+		
+		if(ret == 0) break; // server has quit
+		usleep(30000);
+	}
+
+	arg->run = 0;	
+	
+ 	ret = pthread_cancel(runner_thread);                                                            // udp non più necessario
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore: cancellazione runner_thread non riuscito "); // if errno = ESRCH thread già chiuso
+	
+	Client_siglePlayerNotification(); // chiusura client , aggiungere funzione modif
+	
+	ListItem* item = arg->world->vehicles.first;
+	
+	while(item) {
+		Vehicle* v = (Vehicle*)item;
+		item = item->next;
+		if(v->id != arg->id){
+			World_detachVehicle(arg->world , v);
+			update_info(arg->world, v->id , 0);
+		}			
+	}
+	
+	ret = close(udp_socket);
+	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Errore: non posso chiudere udp socket"); // if errno = EBADF socket è già stata chiusa
+	
+	ret = close(tcp_desc);
+	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Errore: non posso chiudere tcp socket");
+	
+	pthread_exit(EXIT_SUCCESS);
+}
+
+  
   return 0;             
 }
