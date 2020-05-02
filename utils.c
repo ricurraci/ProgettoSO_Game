@@ -205,20 +205,11 @@ ImagePacket* image_pack_in(Type type, Image *image, int id) {  // temporaneo so_
       return packet;
 }
 
-int udp_client_setup(struct sockaddr_in *si_other) { //temporaneo
-	
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
-    
-    si_other->sin_family = AF_INET;
-    si_other->sin_port = htons(UDP_PORT);
-    si_other->sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
 
-	return sock;
-}
 
 VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotational_force, float translational_force) {
     
-    VehicleUpdatePacket *vehicle_packet = (VehicleUpdatePacket*) // preso da vehicle default malloc(sizeof(VehicleUpdatePacket));
+    VehicleUpdatePacket *vehicle_packet = (VehicleUpdatePacket*)malloc(sizeof(VehicleUpdatePacket));
 	PacketHeader v_head;
 	v_head.type = VehicleUpdate;
 
