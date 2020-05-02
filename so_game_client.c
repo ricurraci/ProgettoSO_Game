@@ -7,17 +7,22 @@
 #include <errno.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
-#include
+#include <pthread.h>
+#include <time.h>
+
+#include "utils.h"
 #include "image.h"
 #include "surface.h"
 #include "world.h"
 #include "vehicle.h"
 #include "world_viewer.h"
-
+#include "world_viewer.c"
 int window;
 WorldViewer viewer;
 World world;
 Vehicle* vehicle; // The vehicle
+int udp_socket;
+pthread_t runner_thread;
 
 void keyPressed(unsigned char key, int x, int y)
 {
@@ -117,70 +122,74 @@ int main(int argc, char **argv) {
   Image* map_elevation;
   Image* map_texture;
   Image* my_texture_from_server;
+  Image* vehicle_texture;
   
   vehicle_texture = get_vehicle_texture(); // Da creare ancora la funzione
-  char* buf= (char*)malloc(sizeof(char)* bufl); // cambiale il bufl
+  char* buf= (char*)malloc(sizeof(char) *BUFLEN); // cambiare il bufl
   int ret;
-  int sockettcp; // rivedere
+  int socket_desc; // rivedere
   struct sockaddr_in server_addr ={0};
   int socketudp;
   
   // TCP socket
-  sockettcp = socket(AF_INET, SOCK_STREAM,0);
-  ERROR_HELPER(sockettcp,"Could not create a socket");
+  socket_desc = socket(AF_INET, SOCK_STREAM,0);
+  ERROR_HELPER(socket_desc,"Could not create a socket");
   
   server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS); // inserire nei define
   server_addr.sin_family = AF_INET; //AF_INET is an address family that is used to designate the type of addresses that your socket can communicate with (in this case, Internet Protocol v4 addresses). When you create a socket, you have to specify its address family, and then you can only use addresses of that type with the socket. The Linux kernel, for example, supports 29 other address families such as UNIX
   server_addr.sin_port= htons(UDP_PORT); // mettere nel define udp port 3000
   
-  ret = connect(sockettcp,(struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
+  ret = connect(socket_desc,(struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
   ERROR_HELPER(ret, "Could not create connection");
   
   clear(buf);
-  tcp_send(sockettcp,&id_packet->header); // richiesta id 
-  ret= tcp_receive(sockettcp,buf); // riceve id
+  IdPacket* id_packet = id_packet_init(GetId, my_id);
+  tcp_send(socket_desc, &id_packet->header); // richiesta id 
+  ret= tcp_receive(socket_desc,buf); // riceve id
   ERROR_HELPER(ret,"Cannot receive from tcp socket");
   
   Packet_free(&id_packet->header); // liberare l'header del pacchetto per riusarlo per ricevere l'id
   
   id_packet=(IdPacket*)Packet_deserialize(buf, ret); // id letto dal buffer e salvato su idpacket con deserialize
   
-  my_id= id_packet->id
+  my_id= id_packet->id;
   //if(DEBUG) printf("Id received : &d\n", my_id);
   Packet_free(&id_packet->header);
   
   // richiesta del vehicle texture
-  Image Packet* vehicleTexture_pack
+  ImagePacket* vehicleTexture_pack;
   if(vehicle_texture) {    // inizializzato prima come image*
       vehicleTexture_pack= image_pack_in(PostTexture, vehicle_texture, my_id);
-      tcp_send(sockettcp , &vehicleTexture_pack->header);} // puoi scegliere una tua immagine
+      tcp_send(socket_desc , &vehicleTexture_pack->header);} // puoi scegliere una tua immagine
       else {
 		  vehicleTexture_pack = image_pack_in(GetTexture, NULL, my_id); // immagine di default 
-          tcp_send(sockettcp , &vehicleTexture_pack->header);
-          ret = tcp_receive(sockettcp, buf);
+          tcp_send(socket_desc , &vehicleTexture_pack->header);
+          ret = tcp_receive(socket_desc, buf);
           ERROR_HELPER(ret, "Cannot receive from tcp socket");
           Packet_free(&vehicleTexture_pack->header);
           vehicleTexture_pack = (ImagePacket*)Packet_deserialize(buf, ret);
-          if (vehicleTexture_pack->header).type != PostTexture){
-			  fprintf(stderr,"Error: Image corrupted");
-			  exit(EXIT_FAILURE);
-		  }
-          else if (vehicleTexture_pack->header).type != vehicleTexture_pack->id <=0){
-			  fprintf(stderr,"Error: header without id");
-		  }
+          if( (vehicleTexture_pack->header).type != PostTexture || vehicleTexture_pack->id <= 0) {
+			fprintf(stderr,"Error: Image corrupted");
+			exit(EXIT_FAILURE);			
+		}
+		///if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+		
+		vehicle_texture = vehicleTexture_pack->image;
+    }
+
  // richiesta elevation map
  clear(buf);
- ImagePacket* elevationmap_packet= image_packet_in((GetElevation, NULL, 0);
- tcp_send(sockettcp, &elevationmap_packet->header); // vedere elevationmap
+ ImagePacket* elevationmap_packet= image_pack_in(GetElevation, NULL, 0);
+ tcp_send(socket_desc, &elevationmap_packet->header); // vedere elevationmap
  
- ret = tcp_receive(sockettcp , buf);
+ ret = tcp_receive(socket_desc , buf);
  //ERROR_HELPER(ret, "Cannot receive from tcp socket");
 
 
 
  Packet_free(&elevationmap_packet->header);
  elevationmap_packet= (ImagePacket*)Packet_deserialize(buf, ret);
-   if ( (elevatiomap_packet->id != 0) {
+   if (elevationmap_packet->id != 0) {
           fprintf(stderr, "Error: Image problem with id");
           exit(EXIT_FAILURE);
     }
@@ -189,9 +198,9 @@ int main(int argc, char **argv) {
  // richiesta texture superficie
  clear(buf); // ogni volta che cambia pacchetto
  ImagePacket* surftexture_packet = image_packet_init(GetTexture, NULL , 0); // vedere posizione
- tcp_send(sockettcp, &surftexture_packet->header);
+ tcp_send(socket_desc, &surftexture_packet->header);
  
- ret = tcp_receive(sockettcp , buf);
+ ret = tcp_receive(socket_desc, buf);
  ERROR_HELPER(ret, "Cannot receive from tcp socket");
  Packet_free(&surftexture_packet->header); // libero per riutilizarlo
  
@@ -200,7 +209,7 @@ int main(int argc, char **argv) {
       fprintf(stderr, "Error: image corrupted");
       exit(EXIT_FAILURE);
     } //rivedere
- map_texture = surfaceTexture_packet->image;
+ map_texture = surftexture_packet->image;
 		  
   
   
@@ -209,8 +218,8 @@ int main(int argc, char **argv) {
   // construct the world
   World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
   vehicle=(Vehicle*) malloc(sizeof(Vehicle));
-  Vehicle_init(&vehicle, &world, my_id, my_texture_from_server);
-  World_addVehicle(&world, v);
+  Vehicle_init(vehicle, &world, my_id, vehicle_texture);
+  World_addVehicle(&world, vehicle);
 
   // spawn a thread that will listen the update messages from
   // the server, and sends back the controls
@@ -230,9 +239,13 @@ int main(int argc, char **argv) {
 		.texture = vehicle_texture,
 		.vehicle = vehicle,
 		.world = &world
-	}; // in clientkit.h vedere 
-  ret = pthread_create(&runner_thread, NULL , updater_thread, &runner_args);
-  ret = pthread_create(&connection_checker, NULL , connection_checker_thread, &runner_args);
+	}; // aggiunto in utils
+
+	ret = pthread_create(&runner_thread, NULL, updater_thread, &runner_args);
+	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create runner thread");
+		
+	ret = pthread_create(&connection_checker, NULL, connection_checker_thread, &runner_args);
+	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create connection_checker thread");
 
  
  
@@ -248,10 +261,10 @@ int main(int argc, char **argv) {
   // cleanup
   World_destroy(&world);
   ret = close(udp_socket); //cambio var
-  ret= close(sockettcp);
-  Packet_free(&vehicleTexture_packet->header);
-  Packet_free(&elevationImage_packet->header);
-  Packet_free(&surfaceTexture_packet->header);
+  ret= close(socket_desc);
+  Packet_free(&vehicleTexture_pack->header);
+  Packet_free(&elevationmap_packet->header);
+  Packet_free(&surftexture_packet->header);
   Vehicle_destroy(vehicle);
   return EXIT_SUCCESS;
 
@@ -301,7 +314,7 @@ void *connection_checker_thread(void* args){
 	
 	while(1){
 
-		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // this only checks if recv returns 0, without removing data from queue
+		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // funziona solo se ret recv = 0
 		if(ret < 0 && errno == EINTR) continue;
 		ERROR_HELPER(ret , "<Errore in connection checker"); 
 		
@@ -334,8 +347,13 @@ void *connection_checker_thread(void* args){
 	if(ret < 0 && errno != EBADF) ERROR_HELPER(ret , "Errore: non posso chiudere tcp socket");
 	
 	pthread_exit(EXIT_SUCCESS);
+
+
+} 
+              
+void clear(char* buf){
+	memset(buf , 0 , BUFLEN * sizeof(char));
 }
 
-  
-  return 0;             
-}
+
+
