@@ -113,7 +113,7 @@ int main(int argc, char **argv) {
     printf("Fail! \n");
   }
   
-  Image* my_texture_for_server;
+ 
   // todo: connect to the server
   //   -get ad id
   //   -send your texture to the server (so that all can see you)
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
   int my_id = -1;
   Image* map_elevation;
   Image* map_texture;
-  Image* my_texture_from_server;
+ // Image* my_texture_from_server;
   Image* vehicle_texture;
   
   vehicle_texture = get_vehicle_texture(); // Da creare ancora la funzione
@@ -132,7 +132,7 @@ int main(int argc, char **argv) {
   int ret;
   int socket_desc; // rivedere
   struct sockaddr_in server_addr ={0};
-  int socketudp;
+  
   
   // TCP socket
   socket_desc = socket(AF_INET, SOCK_STREAM,0);

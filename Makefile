@@ -53,13 +53,13 @@ server: ./so_game_server.c ./libso_game.a
 	$(CC) $(CCOPTS) -Ofast -o ./$@ $^ $(LIBS)
 
 client: ./so_game_client.c ./libso_game.a 
-	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS) 
+	$(CC) $(CCOPTS) -Ofast -o ./$@ $^ $(LIBS) 
 
 test_server:
 	./server ./images/test.pgm ./images/test.ppm ./images/arrow-right.ppm
 
 test_client:
-	./bin/client 127.0.0.1
+	./client 127.0.0.1
 
 
 
