@@ -1,14 +1,16 @@
 
-// #include <GL/glut.h> // not needed here
+#include <GL/glut.h> // not needed here
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <sys/socket.h>
-#include netinet/in.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 #include <errno.h>
 #include <pthread.h>
+#include <stdlib.h>
+#include <signal.h>
 
 #include "image.h"
 #include "surface.h"
@@ -36,8 +38,10 @@ ListHead lista_socket;
 pthread_t udp_thread;
 
 
+
 int main(int argc, char **argv) {
-  	if (argc<3) {
+
+	if (argc<3) {
     	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
     	exit(-1);
   	}
@@ -46,12 +50,15 @@ int main(int argc, char **argv) {
   	char* vehicle_texture_filename="./images/arrow-right.ppm";
   	printf("loading elevation image from %s ... ", elevation_filename);
 
-  	// INIZIALIZZAZIONE UDP SERVER
+  	struct sockaddr_in si_me;
+  	udp_socket = udp_server_setup(&si_me);
+
+  	/*INIZIALIZZAZIONE UDP SERVER
 
   	struct sockaddr_in serv_in;
   	int sock = socket(AF_INET, SOCK_DGRAM,0);
 
-  	memset((char *) serv_in, 0, sizeof(*serv_in));
+  	//memset((char *) serv_in, 0, sizeof(*serv_in));
 
 	serv_in->sin_family = AF_INET;
 	serv_in->sin_port = htons(UDP_PORT);
@@ -61,14 +68,14 @@ int main(int argc, char **argv) {
 	int res = bind(sock , (struct sockaddr*) serv_in, sizeof(*serv_in));
 	ERROR_HELPER(res, "Could not bind the udp_socket");
 
-	// FINE SETUP UDP
+	FINE SETUP UDP */ 
 
 
 
-	// INIZIALIZZAZIONE TCP SERVER
+	//INIZIALIZZAZIONE TCP SERVER
 
-	struct sockaddr_in server_addr={0];
-	int sockaddr_len = sizeof(struct sockaddr_in);
+	struct sockaddr_in server_addr={0};
+	int tcp_sockaddr_len = sizeof(struct sockaddr_in);
 
 	// preparo la socket al listening
 	int socket_desc = socket(AF_INET, SOCK_STREAM, 0);
@@ -82,18 +89,18 @@ int main(int argc, char **argv) {
 	int reuseaddr_opt = 1;
 
 	// operazioni per il socket 
-	int ret = setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt, sizeof(reuseaddr_opt));
-	ERROR_HELPER(ret, "Cannot set SO_REUSEADDR option");
+	int tcp_ret = setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt, sizeof(reuseaddr_opt));
+	ERROR_HELPER(tcp_ret, "Cannot set SO_REUSEADDR option");
 
 	// binding
-	ret = bind(socket_desc, (struct sockaddr *)&server_addr, sockaddr_len);
-	ERROR_HELPER(ret, "Cannot bind address to socket");
+	tcp_ret = bind(socket_desc, (struct sockaddr *)&server_addr, tcp_sockaddr_len);
+	ERROR_HELPER(tcp_ret, "Cannot bind address to socket");
 
 	// listening
-	ret = listen(socket_desc, MAX_CONN_QUEUE);
-	ERROR_HELPER(ret, "Cannot listen on socket");
+	tcp_ret = listen(socket_desc, MAX_CONN_QUEUE);
+	ERROR_HELPER(tcp_ret, "Cannot listen on socket");
 
-	// FINE TCP SETUP
+	// FINE TCP SETUP 
 
 
 
@@ -138,7 +145,7 @@ int main(int argc, char **argv) {
   
 	// creo i thread per udp
 	thread_args* udp_args = (thread_args*)malloc(sizeof(thread_args));
-	udp_args->socket_desc = sock;
+	udp_args->socket_desc = udp_socket;
 	udp_args->id = -1;
 
 	// UDP_FUNCTION fuori il main, gestisce i pacchetti udp
@@ -158,7 +165,7 @@ int main(int argc, char **argv) {
 
 		// gestione errori
 		if (client_desc == -1 && errno == EINTR) continue; // check for interruption by signals
-		if(client_desc == -1 && run_server == 0) break;    // server is closing
+		if(client_desc == -1 && is_running == 0) break;    // server is closing
 		ERROR_HELPER(client_desc, "Impossibile aprire la socket per le connessioni");
 
 		// gestione veicoli
@@ -232,148 +239,7 @@ int main(int argc, char **argv) {
   // // run the main GL loop
   // glutMainLoop();
 
-  return 0;             
-}
-
-void signal_handler(int sig){
-	int ret1, ret2
-	signal(SIGINT, SIG_DFL);
-	is_running = 0;
-	sleep(1);
-	
-	if(DEBUG){
-		fprintf(stdout,"Chiudo il server...\n");
-		fflush(stdout);
-	}
-	
-	int ret = pthread_cancel(udp_thread);
-	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore nella cancellazione del thread udp"); 
-	
-	Server_socketClose(&lista_socket);
-	listfree_serv(&lista_socket);
-	
-	ret1 = close(udp_socket);
-	if ( ret1==-1 ){
-		ERROR_HELPER( -1,"Errore nella chiusura della socket");
-	}
-	ret1 = close(socket_desc);
-	if ( ret1==-1 ){
-		ERROR_HELPER( -1,"Errore nella chiusura della socket");
-	}
-	
-}
-
-// funzione per udp
-
-void *udp_function(void *arg) {
-	
-	struct sockaddr_in udp_client_addr;
-	int udp_socket = ((thread_args*)arg)->socket_desc;
-	
-	int ret;
-	char buffer[BUFLEN];
-	
-	while(is_running) {
-		ret = udp_receive(udp_socket, &udp_client_addr, buffer);
-		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
-		
-		world_update(vehicle_packet, &world);
-		WorldUpdatePacket* world_packet = world_update_init(&world);		
-		
-		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
-		
-	}
-	pthread_exit(NULL);
-}
-
-
-// funzione per tcp
-
-void *tcp_function_client(void *arg){
-
-	thread_args* args = (thread_args*)arg;
-	
-	int socket = args->socket_desc;
-	char buf[BUFLEN];
-    int run = 1;
-    int client_id = args->id;
-
-    while(run && is_running) {
-
-		int ret = tcp_receive(socket , buf);
-
-		if(ret == -1){
-			if(is_running == 0){ // server sta chiudendo
-				run = 0;
-				break;
-			}
-			ERROR_HELPER(ret, "Impossibile ricevere dalla socket tcp");
-		}
-		
-		else if(!ret) run = 0; // client disconnesso
-		
-		else {
-
-			PacketHeader* packet = (PacketHeader*) Packet_deserialize(buf , ret);
-			
-			switch(packet->type) {
-				
-				case GetId: { 
-					IdPacket* id_packet = id_packet_init(GetId, client_id);
-					tcp_send(socket, &id_packet->header); 
-					free(id_packet);
-					break;
-				}
-				
-				case GetElevation: {  
-					ImagePacket* elevation_packet = image_packet_init(PostElevation, surface_elevation , 0);
-					tcp_send(socket, &elevation_packet->header);
-					free(elevation_packet);
-					break;
-				}
-				
-				case GetTexture: {
-					
-					if(!((ImagePacket*) packet)->id){  
-						ImagePacket* texture_packet = image_packet_init(PostTexture, surface_texture , 0);
-						tcp_send(socket, &texture_packet->header);
-					}
-					else { 
-						Vehicle *v = World_getVehicle(&world, ((ImagePacket*) packet)->id);
-						ImagePacket* texture_packet = image_packet_init(PostTexture, v->texture, ((ImagePacket*) packet)->id);
-						tcp_send(socket, &texture_packet->header);
-					}
-					break;			
-				}
-				
-				case PostTexture: {
-					Vehicle *v = World_getVehicle(&world, ((ImagePacket*) packet)->id);
-					v->texture = ((ImagePacket*) packet)->image;	
-					break;
-				}
-
-				default: break;
-			}
-		}
-	}	
-
-	Vehicle *v = World_getVehicle(&world, args->id);
-
-	World_detachVehicle(&world, v);
-	update_info(&world, args->id, 0);
-	Vehicle_destroy(v);
-	free(args);
-	
-	if(is_running) {
-
-		ServerListItem* to_remove = get_servsock(&lista_socket,socket);
-		List_detach(&lista_socket, (ListItem*)to_remove);
-
-		int ret = close(socket);
-		ERROR_HELPER(ret, "Cannot close socket");
-    }
-    	
-    pthread_exit(NULL);
 
 }
+
 

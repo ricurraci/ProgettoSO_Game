@@ -16,6 +16,9 @@ OBJS = vec3.o\
        world.o\
        world_viewer.o\
        so_game_protocol.o\
+       so_game_server.o\
+       so_game_client.o\
+       utils.o\
 
 HEADERS=helpers.h\
 	image.h\
@@ -26,6 +29,7 @@ HEADERS=helpers.h\
 	vehicle.h\
 	world.h\
 	world_viewer.h\
+	utils.h\
 
 %.o:	%.c $(HEADERS)
 	$(CC) $(CCOPTS) -c -o $@  $<
@@ -41,6 +45,24 @@ libso_game.a: $(OBJS)
 
 so_game: so_game.c libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o $@ $^ $(LIBS)
+
+
+
+
+server: ./server.c ./libso_game.a 
+	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS)
+
+client: ./client.c ./libso_game.a 
+	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS) 
+
+test_server:
+	./bin/server ./images/test.pgm ./images/test.ppm ./images/arrow-right.ppm
+
+test_client:
+	./bin/client 127.0.0.1
+
+
+
 
 test_packets_serialization: test_packets_serialization.c libso_game.a  
 	$(CC) $(CCOPTS) -Ofast -o $@ $^  $(LIBS)
