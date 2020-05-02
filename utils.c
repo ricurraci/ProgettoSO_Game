@@ -321,7 +321,7 @@ VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotation
 	vehicle_packet->translational_force = (World_getVehicle(world, arg_id))->translational_force_update;
 
 	return vehicle_packet;
-} // packet.c 
+} 
 
 void udp_send(int socket, struct sockaddr_in *si, const PacketHeader* h) {
 
@@ -355,7 +355,7 @@ int udp_receive(int socket, struct sockaddr_in *si, char *buffer) {
 	ERROR_HELPER(ret, "Cannot receive from udp socket");
 
 	return ret;
-}// socket.c
+}
 
 int udp_client_setup(struct sockaddr_in *si_other) {
 	
@@ -366,7 +366,7 @@ int udp_client_setup(struct sockaddr_in *si_other) {
     si_other->sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
 
 	return sock;
-} // socket.c
+} 
 
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world) {
 
@@ -431,6 +431,74 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, W
 		v->y = deserialized_wu_packet->updates[i].y;
 		v->theta = deserialized_wu_packet->updates[i].theta;
 	}
-} // clientkit.c
-      
+} 
+     
+Image* get_vehicle_texture() {
+
+	Image* my_texture;
+	char image_path[256];
+	
+	fprintf(stdout, "\nOPERATING SYSTEM PROJECT 2020 - CLIENT SIDE ***\n\n"); // modificare dopo
+	fflush(stdout);
+	fprintf(stdout, "\nWelcome!\nThanks for joining, you will be soon connected to the game server.\n");
+	fprintf(stdout, "First, you can choose to use your own image. Only .ppm images are supported.\n");
+	
+	while(1){
+		fprintf(stdout, "Insert path ('no' for default vehicle image) ('q' to exit) :\n");
+		if(scanf("%s",image_path) < 0){
+			fprintf(stderr, "Error occured!\n");
+			exit(EXIT_FAILURE);
+		}
+		if(strcmp(image_path, "q") == 0) exit(EXIT_SUCCESS);
+		if(strcmp(image_path, "no") == 0) return NULL;
+		else {
+			char *dot = strrchr(image_path, '.');
+			if (dot == NULL || strcmp(dot, ".ppm")!=0){
+				fprintf(stderr,"Sorry! Image not found or not supported... \n");
+			}
+			else{
+				my_texture = Image_load(image_path);
+				if (my_texture) {
+					printf("Done! \n");
+					return my_texture;
+				} else {
+					fprintf(stderr,"Sorry! Chose image cannot be loaded... \n");
+					exit(EXIT_FAILURE);
+				}
+			}
+		}
+		usleep(3000);
+	}
+	return NULL; // will never be reached
+}
+IdPacket* id_packet_init(Type header_type, int id){
+	PacketHeader id_header;
+	id_header.type = header_type;
+	
+	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
+	id_packet->header = id_header;
+	id_packet->id = id;	
+	return id_packet;
+}
+
+ImagePacket* image_packet_init(Type type, Image *image, int id) {
+
+	ImagePacket *packet = (ImagePacket*) malloc(sizeof(ImagePacket));
+
+	PacketHeader header;
+	header.type = type;
+
+	packet->header = header;
+	packet->id = id;
+	packet->image = image;
+
+	return packet;
+}
+
+void Client_siglePlayerNotification(void){
+	fprintf(stdout, "\n\nConnection with SEREVR ip:[%s] port:[%d] ENDED\n", 
+				SERVER_ADDRESS , TCP_PORT);
+	fprintf(stdout,"\nMultiplayer no longer avaible!! ***\n\n");
+	fflush(stdout);
+}
 
