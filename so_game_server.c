@@ -150,34 +150,24 @@ void *tcp_function_client(void *arg){
 
 }
 
-
-
 void signal_handler(int sig){
-	int ret1, ret2;
-	signal(SIGINT, SIG_DFL);
+	signal(SIGINT, SIG_DFL); // Restore default signal handling. Double CTRL+C for hard shutdown
 	is_running = 0;
 	sleep(1);
 	
 	if(DEBUG){
-		fprintf(stdout,"Chiudo il server...\n");
+		fprintf(stdout,"\nClosing server ...\n");
 		fflush(stdout);
 	}
 	
 	int ret = pthread_cancel(udp_thread);
-	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore nella cancellazione del thread udp"); 
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: pthread_cancel udp thread failed"); // if errno == ESRCH udp_thread has already terminated
 	
 	Server_socketClose(&lista_socket);
-	listFree_serv(&lista_socket);
+	Server_listFree(&lista_socket);
 	
-	ret1 = close(udp_socket);
-	if ( ret1==-1 ){
-		ERROR_HELPER( -1,"Errore nella chiusura della socket");
-	}
-	ret1 = close(socket_desc);
-	if ( ret1==-1 ){
-		ERROR_HELPER( -1,"Errore nella chiusura della socket");
-	}
-	
+	closeSocket(udp_socket);
+	closeSocket(socket_desc);
 }
 
 

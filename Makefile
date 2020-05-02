@@ -49,14 +49,14 @@ so_game: so_game.c libso_game.a
 
 
 
-server: ./server.c ./libso_game.a 
-	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS)
+server: ./so_game_server.c ./libso_game.a 
+	$(CC) $(CCOPTS) -Ofast -o ./$@ $^ $(LIBS)
 
-client: ./client.c ./libso_game.a 
+client: ./so_game_client.c ./libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o ./bin/$@ $^ $(LIBS) 
 
 test_server:
-	./bin/server ./images/test.pgm ./images/test.ppm ./images/arrow-right.ppm
+	./server ./images/test.pgm ./images/test.ppm ./images/arrow-right.ppm
 
 test_client:
 	./bin/client 127.0.0.1

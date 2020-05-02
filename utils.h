@@ -59,6 +59,10 @@ void listFree_serv(ListHead* l);
 
 void Server_socketClose(ListHead* l);
 
+void Server_listFree(ListHead* l);
+
+void closeSocket(int fd);
+
 void update_info(World *world, int id, int flag);
 
 int udp_server_setup(struct sockaddr_in *si_me);
@@ -83,7 +87,7 @@ int udp_client_setup(struct sockaddr_in *si_other);
 
 void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, World *world);
 
-Image* get_vehicle_texture();
+Image* get_vehicle_texture(void);
 
 IdPacket* id_packet_init(Type header_type, int id);
 

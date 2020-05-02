@@ -59,7 +59,17 @@ void Server_socketClose(ListHead* l){
 }
 
 
-
+void Server_listFree(ListHead* l){
+	if(l->first == NULL) return;
+	ListItem *item = l->first;
+	int size = l->size;
+	int i;
+	for(i=0; i < size; i++) {
+		ServerListItem *v = (ServerListItem*) item;
+		item = item->next;
+		free(v);		
+	}
+}
 
 
 int udp_server_setup(struct sockaddr_in *si_me) {
