@@ -92,16 +92,15 @@ int main(int argc, char **argv) {
   ImagePacket* vehicleTexture_packet;
   
   if(vehicle_texture) {
-    vehicleTexture_packet = image_packet_init(PostTexture, vehicle_texture, my_id);    // client chose to use his own image
+    vehicleTexture_packet = image_packet_init(PostTexture, vehicle_texture, my_id);    // client sceglie di utilizzare una sua immagine
     tcp_send(socket_desc , &vehicleTexture_packet->header);
   } else {
-    vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); // client chose default vehicle image
-    
+    vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); //client sceglie immagine di default
     tcp_send(socket_desc , &vehicleTexture_packet->header); 
     ret = tcp_receive(socket_desc , buf);
     ERROR_HELPER(ret, "Cannot receive from tcp socket");
     
-    Packet_free(&vehicleTexture_packet->header); // free to use the same ImagePacket to receive
+    Packet_free(&vehicleTexture_packet->header); // libera per utilizzare stesso vehicletexturepack per ricevere
     vehicleTexture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
     
     if( (vehicleTexture_packet->header).type != PostTexture || vehicleTexture_packet->id <= 0) {
@@ -123,7 +122,7 @@ int main(int argc, char **argv) {
  ret = tcp_receive(socket_desc , buf);
  ERROR_HELPER(ret, "Cannot receive from tcp socket");
 
-  Packet_free(&elevationmap_packet->header); // free to use the same ImagePacket to receive
+  Packet_free(&elevationmap_packet->header); // libera per utilizzare stesso elevionmappacket per ricevere
   elevationmap_packet = (ImagePacket*)Packet_deserialize(buf, ret);
     
     if( (elevationmap_packet->header).type != PostElevation || elevationmap_packet->id != 0) {
@@ -161,13 +160,7 @@ int main(int argc, char **argv) {
   Vehicle_init(vehicle, &world, my_id, vehicle_texture);
   World_addVehicle(&world, vehicle);
 
-  // spawn a thread that will listen the update messages from
-  // the server, and sends back the controls
-  // the update for yourself are written in the desired_*_force
-  // fields of the vehicle variable
-  // when the server notifies a new player has joined the game
-  // request the texture and add the player to the pool
-  /*FILLME*/
+
 
  // Parte UDP
  pthread_t connection_checker;
@@ -179,7 +172,7 @@ int main(int argc, char **argv) {
 		.texture = vehicle_texture,
 		.vehicle = vehicle,
 		.world = &world
-	}; // aggiunto in utils
+	}; // aggiunto in utils struct
 
 	ret = pthread_create(&runner_thread, NULL, updater_thread, &runner_args);
 	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create runner thread");
@@ -200,7 +193,7 @@ int main(int argc, char **argv) {
 
   // cleanup
   World_destroy(&world);
-  ret = close(udp_socket); //cambio var
+  ret = close(udp_socket); 
   ret= close(socket_desc);
   Packet_free(&vehicleTexture_packet->header);
   Packet_free(&elevationmap_packet->header);
@@ -220,7 +213,7 @@ void *updater_thread(void *args) {
 
 	// creazione socket udp
 	struct sockaddr_in si_other;
-	udp_socket = udp_client_setup(&si_other); // socket.c
+	udp_socket = udp_client_setup(&si_other); 
 
     int ret;
 
@@ -297,86 +290,4 @@ void clear(char* buf){
 
 
 
-/**
 
-void keyPressed(unsigned char key, int x, int y)
-{
-  switch(key){
-  case 27:
-    glutDestroyWindow(window);
-    exit(0);
-  case ' ':
-    vehicle->translational_force_update = 0;
-    vehicle->rotational_force_update = 0;
-    break;
-  case '+':
-    viewer.zoom *= 1.1f;
-    break;
-  case '-':
-    viewer.zoom /= 1.1f;
-    break;
-  case '1':
-    viewer.view_type = Inside;
-    break;
-  case '2':
-    viewer.view_type = Outside;
-    break;
-  case '3':
-    viewer.view_type = Global;
-    break;
-  }
-}
-
-
-void specialInput(int key, int x, int y) {
-  switch(key){
-  case GLUT_KEY_UP:
-    vehicle->translational_force_update += 0.1;
-    break;
-  case GLUT_KEY_DOWN:
-    vehicle->translational_force_update -= 0.1;
-    break;
-  case GLUT_KEY_LEFT:
-    vehicle->rotational_force_update += 0.1;
-    break;
-  case GLUT_KEY_RIGHT:
-    vehicle->rotational_force_update -= 0.1;
-    break;
-  case GLUT_KEY_PAGE_UP:
-    viewer.camera_z+=0.1;
-    break;
-  case GLUT_KEY_PAGE_DOWN:
-    viewer.camera_z-=0.1;
-    break;
-  }
-}
-
-
-void display(void) {
-  WorldViewer_draw(&viewer);
-}
-
-
-void reshape(int width, int height) {
-  WorldViewer_reshapeViewport(&viewer, width, height);
-}
-
-void idle(void) {
-  World_update(&world);
-  usleep(30000);
-  glutPostRedisplay();
-  
-  // decay the commands
-  vehicle->translational_force_update *= 0.999;
-  vehicle->rotational_force_update *= 0.7;
-}
-
-
- Packet_free(&elevationmap_packet->header);
- elevationmap_packet= (ImagePacket*)Packet_deserialize(buf, ret);
-   if (elevationmap_packet->id != 0) {
-          fprintf(stderr, "Error: Image problem with id");
-          exit(EXIT_FAILURE);
-    }
-
-**/
