@@ -117,7 +117,7 @@ int main(int argc, char **argv) {
  printf("bella fra 3");
  clear(buf);
  printf("bella fra 2");
- ImagePacket* elevationmap_packet= image_pack_in(GetElevation, NULL, 0);
+ ImagePacket* elevationmap_packet= image_packet_init(GetElevation, NULL, 0);
  tcp_send(socket_desc, &elevationmap_packet->header); // vedere elevationmap
  
  ret = tcp_receive(socket_desc , buf);

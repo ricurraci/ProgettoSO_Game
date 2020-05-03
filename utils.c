@@ -204,7 +204,7 @@ void update_info(World *world, int id, int flag) {
 	}
 }
 
-ImagePacket* image_pack_in(Type type, Image *image, int id) {  // temporaneo so_game_protocol.h nell'include, aggiungerlo dopo
+ImagePacket* image_packet_init(Type type, Image *image, int id) {  // temporaneo so_game_protocol.h nell'include, aggiungerlo dopo
       ImagePacket *packet = (ImagePacket*)malloc(sizeof(ImagePacket));
       PacketHeader header;
       header.type= type;
@@ -384,30 +384,6 @@ Image* get_vehicle_texture() {
 
 
 
-IdPacket* id_packet_init(Type header_type, int id){
-	PacketHeader id_header;
-	id_header.type = header_type;
-	
-	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
-	id_packet->header = id_header;
-	id_packet->id = id;	
-	return id_packet;
-}
-
-ImagePacket* image_packet_init(Type type, Image *image, int id) {
-
-	ImagePacket *packet = (ImagePacket*) malloc(sizeof(ImagePacket));
-
-	PacketHeader header;
-	header.type = type;
-
-	packet->header = header;
-	packet->id = id;
-	packet->image = image;
-
-	return packet;
-}
-
 void Client_siglePlayerNotification(void){
 	fprintf(stdout, "\n\nConnection with SEREVR ip:[%s] port:[%d] ENDED\n", 
 				SERVER_ADDRESS , TCP_PORT);
@@ -438,5 +414,15 @@ int tcp_client_setup(void){
 	//if (DEBUG) fprintf(stderr, "Connection established!\n");  
 	
 	return socket_desc;
+}
+
+IdPacket* id_packet_init(Type header_type, int id){
+	PacketHeader id_header;
+	id_header.type = header_type;
+	
+	IdPacket* id_packet = (IdPacket*)malloc(sizeof(IdPacket));
+	id_packet->header = id_header;
+	id_packet->id = id;	
+	return id_packet;
 }
 

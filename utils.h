@@ -73,7 +73,7 @@ void tcp_send(int socket_desc, PacketHeader* packet);
 
 int tcp_receive(int socket_desc , char* msg);
 
-ImagePacket* image_pack_in(Type type, Image *image, int id);
+ImagePacket* image_packet_init(Type type, Image *image, int id);
 
 int udp_client_setup(struct sockaddr_in *si_other);
 
@@ -91,8 +91,6 @@ Image* get_vehicle_texture(void);
 
 IdPacket* id_packet_init(Type header_type, int id);
 
-ImagePacket* image_packet_init(Type type, Image *image, int id);
-
 void *updater_thread(void *args);
 
 void *connection_checker_thread(void* args);
@@ -102,6 +100,8 @@ void Client_siglePlayerNotification(void);
 void clear(char* buf);
 
 int tcp_client_setup(void);
+
+IdPacket* id_packet_init(Type header_type, int id);
 
 
 
