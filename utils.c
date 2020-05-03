@@ -341,6 +341,7 @@ void client_update(WorldUpdatePacket *deserialized_wu_packet, int socket_desc, W
 	}
 } 
      
+
 Image* get_vehicle_texture() {
 
 	Image* my_texture;
@@ -379,6 +380,10 @@ Image* get_vehicle_texture() {
 	}
 	return NULL; // will never be reached
 }
+
+
+
+
 IdPacket* id_packet_init(Type header_type, int id){
 	PacketHeader id_header;
 	id_header.type = header_type;

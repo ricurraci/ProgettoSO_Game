@@ -24,95 +24,26 @@ Vehicle* vehicle; // The vehicle
 int udp_socket;
 pthread_t runner_thread;
 
-/**
+//<player texture> nel print
 
-void keyPressed(unsigned char key, int x, int y)
-{
-  switch(key){
-  case 27:
-    glutDestroyWindow(window);
-    exit(0);
-  case ' ':
-    vehicle->translational_force_update = 0;
-    vehicle->rotational_force_update = 0;
-    break;
-  case '+':
-    viewer.zoom *= 1.1f;
-    break;
-  case '-':
-    viewer.zoom /= 1.1f;
-    break;
-  case '1':
-    viewer.view_type = Inside;
-    break;
-  case '2':
-    viewer.view_type = Outside;
-    break;
-  case '3':
-    viewer.view_type = Global;
-    break;
-  }
-}
-
-
-void specialInput(int key, int x, int y) {
-  switch(key){
-  case GLUT_KEY_UP:
-    vehicle->translational_force_update += 0.1;
-    break;
-  case GLUT_KEY_DOWN:
-    vehicle->translational_force_update -= 0.1;
-    break;
-  case GLUT_KEY_LEFT:
-    vehicle->rotational_force_update += 0.1;
-    break;
-  case GLUT_KEY_RIGHT:
-    vehicle->rotational_force_update -= 0.1;
-    break;
-  case GLUT_KEY_PAGE_UP:
-    viewer.camera_z+=0.1;
-    break;
-  case GLUT_KEY_PAGE_DOWN:
-    viewer.camera_z-=0.1;
-    break;
-  }
-}
-
-
-void display(void) {
-  WorldViewer_draw(&viewer);
-}
-
-
-void reshape(int width, int height) {
-  WorldViewer_reshapeViewport(&viewer, width, height);
-}
-
-void idle(void) {
-  World_update(&world);
-  usleep(30000);
-  glutPostRedisplay();
-  
-  // decay the commands
-  vehicle->translational_force_update *= 0.999;
-  vehicle->rotational_force_update *= 0.7;
-}
-**/
 
 int main(int argc, char **argv) {
   if (argc<2) {
-    printf("usage: %s <server_address> <player texture>\n", argv[1]);
+    printf("usage: %s <server_address>\n", argv[1]);
     exit(-1);
   }
 
-  printf("loading texture image from %s ... ", argv[2]);
+// FORSE ERRORE QUI
+
+/**  printf("loading texture image from %s ... ", argv[2]);
   Image* my_texture = Image_load(argv[2]);
   if (my_texture) {
     printf("Done! \n");
   } else {
     printf("Fail! \n");
   }
-  int ret;
+
+**/
  
   // todo: connect to the server
   //   -get ad id
@@ -124,19 +55,24 @@ int main(int argc, char **argv) {
   int my_id = -1;
   Image* map_elevation;
   Image* map_texture;
- // Image* my_texture_from_server;
+  //Image* my_texture_from_server;
   Image* vehicle_texture;
   
   vehicle_texture = get_vehicle_texture(); // Da creare ancora la funzione
   char* buf= (char*)malloc(sizeof(char) *BUFLEN); 
   int socket_desc = tcp_client_setup();
   
+  World world;
+  Vehicle* vehicle;
+
+  int ret;
   
   // TCP socket
 
   
   clear(buf);
   IdPacket* id_packet = id_packet_init(GetId, my_id);
+  
   tcp_send(socket_desc, &id_packet->header); // richiesta id 
   ret= tcp_receive(socket_desc,buf); // riceve id
   ERROR_HELPER(ret,"Cannot receive from tcp socket");
@@ -153,30 +89,28 @@ int main(int argc, char **argv) {
   clear(buf);
   // richiesta del vehicle texture
   
-  ImagePacket* vehicleTexture_pack;
+  ImagePacket* vehicleTexture_packet;
   
-  if(vehicle_texture) {    // inizializzato prima come image*
-      vehicleTexture_pack= image_pack_in(PostTexture, vehicle_texture, my_id);
-      printf("ci arrivo?");
-      tcp_send(socket_desc , &vehicleTexture_pack->header);} // puoi scegliere una tua immagine
-      else {
-		  vehicleTexture_pack = image_pack_in(GetTexture, NULL, my_id); // immagine di default 
-          tcp_send(socket_desc , &vehicleTexture_pack->header);
-          printf("ci arrivo");
-          ret = tcp_receive(socket_desc, buf);
-          ERROR_HELPER(ret, "Cannot receive from tcp socket");
-          printf("ci arrivo2");
-          Packet_free(&vehicleTexture_pack->header);
-          printf("qua");
-          vehicleTexture_pack = (ImagePacket*)Packet_deserialize(buf, ret);
-          printf("ci proviamo");
-          if( (vehicleTexture_pack->header).type != PostTexture || vehicleTexture_pack->id <= 0) {
-			fprintf(stderr,"Error: Image corrupted");
-			exit(EXIT_FAILURE);			
-		}
-		///if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
-		
-		vehicle_texture = vehicleTexture_pack->image;
+  if(vehicle_texture) {
+    vehicleTexture_packet = image_packet_init(PostTexture, vehicle_texture, my_id);    // client chose to use his own image
+    tcp_send(socket_desc , &vehicleTexture_packet->header);
+  } else {
+    vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); // client chose default vehicle image
+    
+    tcp_send(socket_desc , &vehicleTexture_packet->header); 
+    ret = tcp_receive(socket_desc , buf);
+    ERROR_HELPER(ret, "Cannot receive from tcp socket");
+    
+    Packet_free(&vehicleTexture_packet->header); // free to use the same ImagePacket to receive
+    vehicleTexture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+    
+    if( (vehicleTexture_packet->header).type != PostTexture || vehicleTexture_packet->id <= 0) {
+      fprintf(stderr,"Error: Image corrupted");
+      exit(EXIT_FAILURE);     
+    }
+    ///if(DEBUG) printf("%s VEHICLE TEXTURE RECEIVED FROM SERVER\n", TCP_SOCKET_NAME);
+    
+    vehicle_texture = vehicleTexture_packet->image;
     }
 
  // richiesta elevation map
@@ -187,16 +121,16 @@ int main(int argc, char **argv) {
  tcp_send(socket_desc, &elevationmap_packet->header); // vedere elevationmap
  
  ret = tcp_receive(socket_desc , buf);
- //ERROR_HELPER(ret, "Cannot receive from tcp socket");
+ ERROR_HELPER(ret, "Cannot receive from tcp socket");
 
-
-
- Packet_free(&elevationmap_packet->header);
- elevationmap_packet= (ImagePacket*)Packet_deserialize(buf, ret);
-   if (elevationmap_packet->id != 0) {
-          fprintf(stderr, "Error: Image problem with id");
-          exit(EXIT_FAILURE);
-    }
+  Packet_free(&elevationmap_packet->header); // free to use the same ImagePacket to receive
+  elevationmap_packet = (ImagePacket*)Packet_deserialize(buf, ret);
+    
+    if( (elevationmap_packet->header).type != PostElevation || elevationmap_packet->id != 0) {
+    fprintf(stderr,"Error: Image corrupted");
+    exit(EXIT_FAILURE);   
+  }
+  
    map_elevation = elevationmap_packet->image; // include verifica
 
  // richiesta texture superficie
@@ -206,14 +140,16 @@ int main(int argc, char **argv) {
  
  ret = tcp_receive(socket_desc, buf);
  ERROR_HELPER(ret, "Cannot receive from tcp socket");
+
  Packet_free(&surftexture_packet->header); // libero per riutilizarlo
- 
  surftexture_packet = (ImagePacket*)Packet_deserialize(buf , ret);
+ 
   if ((surftexture_packet->header).type != PostTexture || surftexture_packet->id != 0)  {
       fprintf(stderr, "Error: image corrupted");
       exit(EXIT_FAILURE);
     } //rivedere
- map_texture = surftexture_packet->image;
+  
+  map_texture = surftexture_packet->image;
 		  
   
   
@@ -266,7 +202,7 @@ int main(int argc, char **argv) {
   World_destroy(&world);
   ret = close(udp_socket); //cambio var
   ret= close(socket_desc);
-  Packet_free(&vehicleTexture_pack->header);
+  Packet_free(&vehicleTexture_packet->header);
   Packet_free(&elevationmap_packet->header);
   Packet_free(&surftexture_packet->header);
   Vehicle_destroy(vehicle);
@@ -361,3 +297,86 @@ void clear(char* buf){
 
 
 
+/**
+
+void keyPressed(unsigned char key, int x, int y)
+{
+  switch(key){
+  case 27:
+    glutDestroyWindow(window);
+    exit(0);
+  case ' ':
+    vehicle->translational_force_update = 0;
+    vehicle->rotational_force_update = 0;
+    break;
+  case '+':
+    viewer.zoom *= 1.1f;
+    break;
+  case '-':
+    viewer.zoom /= 1.1f;
+    break;
+  case '1':
+    viewer.view_type = Inside;
+    break;
+  case '2':
+    viewer.view_type = Outside;
+    break;
+  case '3':
+    viewer.view_type = Global;
+    break;
+  }
+}
+
+
+void specialInput(int key, int x, int y) {
+  switch(key){
+  case GLUT_KEY_UP:
+    vehicle->translational_force_update += 0.1;
+    break;
+  case GLUT_KEY_DOWN:
+    vehicle->translational_force_update -= 0.1;
+    break;
+  case GLUT_KEY_LEFT:
+    vehicle->rotational_force_update += 0.1;
+    break;
+  case GLUT_KEY_RIGHT:
+    vehicle->rotational_force_update -= 0.1;
+    break;
+  case GLUT_KEY_PAGE_UP:
+    viewer.camera_z+=0.1;
+    break;
+  case GLUT_KEY_PAGE_DOWN:
+    viewer.camera_z-=0.1;
+    break;
+  }
+}
+
+
+void display(void) {
+  WorldViewer_draw(&viewer);
+}
+
+
+void reshape(int width, int height) {
+  WorldViewer_reshapeViewport(&viewer, width, height);
+}
+
+void idle(void) {
+  World_update(&world);
+  usleep(30000);
+  glutPostRedisplay();
+  
+  // decay the commands
+  vehicle->translational_force_update *= 0.999;
+  vehicle->rotational_force_update *= 0.7;
+}
+
+
+ Packet_free(&elevationmap_packet->header);
+ elevationmap_packet= (ImagePacket*)Packet_deserialize(buf, ret);
+   if (elevationmap_packet->id != 0) {
+          fprintf(stderr, "Error: Image problem with id");
+          exit(EXIT_FAILURE);
+    }
+
+**/

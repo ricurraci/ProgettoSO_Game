@@ -175,13 +175,17 @@ void signal_handler(int sig){
 
 int main(int argc, char **argv) {
 
-	if (argc<3) {
+// prima 3 
+
+	if (argc<4) {
     	printf("usage: %s <elevation_image> <texture_image>\n", argv[1]);
     	exit(-1);
   	}
   	char* elevation_filename=argv[1];
 	char* texture_filename=argv[2];
-  	char* vehicle_texture_filename="./images/arrow-right.ppm";
+	char* vehicle_texture_filename=argv[3];
+  	
+  	//char* vehicle_texture_filename="./images/arrow-right.ppm";
   	printf("loading elevation image from %s ... ", elevation_filename);
 
   	struct sockaddr_in si_me;
