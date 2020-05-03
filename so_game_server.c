@@ -20,15 +20,17 @@ Image* surface_elevation;
 Image* vehicle_texture;
 
 int run_server;
-int socket_desc; //tcp socket_desc
-int udp_socket;  //udp socket_desc
+int socket_desc; 
+int udp_socket;  
 
 
 ListHead socket_list;
 pthread_t udp_thread;
 
+// FUNZIONI AUSILIARIE
+
 void signal_handler(int sig){
-	signal(SIGINT, SIG_DFL); // Restore default signal handling. Double CTRL+C for hard shutdown
+	signal(SIGINT, SIG_DFL); 
 	run_server = 0;
 	sleep(1);
 	
@@ -38,7 +40,7 @@ void signal_handler(int sig){
 	}
 	
 	int ret = pthread_cancel(udp_thread);
-	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: pthread_cancel udp thread failed"); // if errno == ESRCH udp_thread has already terminated
+	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: pthread_cancel udp thread failed");
 	
 	Server_socketClose(&socket_list);
 	Server_listFree(&socket_list);
@@ -58,7 +60,7 @@ void *tcp_client_handler(void *arg){
 
     while(run && run_server) {
 		
-		int ret = tcp_receive(socket , buf);
+		int ret = tcp_receive(socket , buf);  
 		
 		if(ret == -1){
 			if(run_server == 0){ // server is closing
