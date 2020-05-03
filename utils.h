@@ -101,6 +101,8 @@ void Client_siglePlayerNotification(void);
 
 void clear(char* buf);
 
+int tcp_client_setup(void);
+
 
 
 
