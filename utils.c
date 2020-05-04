@@ -25,6 +25,7 @@ int udp_server_setup(struct sockaddr_in *si_me) {
 	
 	memset((char *) si_me, 0, sizeof(*si_me));
 
+	// struct che contiene valori
 	si_me->sin_family = AF_INET;
 	si_me->sin_port = htons(UDP_PORT);
 	si_me->sin_addr.s_addr = htonl(INADDR_ANY);
@@ -82,7 +83,7 @@ int tcp_server_setup(void) {
 
 	int sockaddr_len = sizeof(struct sockaddr_in); 
 
-	// listening
+	// listening socket
 	int socket_desc = socket(AF_INET, SOCK_STREAM, 0);
 	ERROR_HELPER(socket_desc, "Could not create socket");
 
@@ -90,7 +91,7 @@ int tcp_server_setup(void) {
 	server_addr.sin_family = AF_INET;
 	server_addr.sin_port = htons(TCP_PORT); // network byte order!
 
-	// We enable SO_REUSEADDR to quickly restart our server after a crash
+	// SO_REUSEADDR serve per il crash
 	int reuseaddr_opt = 1;
 	int ret = setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_opt, sizeof(reuseaddr_opt));
 	ERROR_HELPER(ret, "Cannot set SO_REUSEADDR option");
@@ -117,7 +118,6 @@ void tcp_send(int socket_desc, PacketHeader* packet){
 	int len =  Packet_serialize(to_send, packet);
 	snprintf(len_to_send, BUFLEN , "%d", len);
 	
-	//if(DEBUG) printf("*** Bytes to send : %s\n" , len_to_send);
 	
 	ret = send(socket_desc, len_to_send, sizeof(long int) , 0);
 	ERROR_HELPER(ret, "Impossibile mandare il messaggio");  
@@ -138,11 +138,10 @@ int tcp_receive(int socket_desc , char* msg) {
 	char len_to_receive[BUFLEN];
 	
 	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
-	ERROR_HELPER(ret, "Cannot receive from tcp socket");
+	ERROR_HELPER(ret, "impossible ricevere dalla socket tcp");
 	
 	int received_bytes = 0;
 	int to_receive = atoi(len_to_receive);
-	//if(DEBUG) printf("*** Bytes to_received : %d \n" , to_receive);
 
 	
 	while(received_bytes < to_receive){
@@ -150,12 +149,10 @@ int tcp_receive(int socket_desc , char* msg) {
 		if(ret < 0 && errno == EINTR) continue;
 		if(ret < 0) return ret;
 		
-	    //ERROR_HELPER(ret, "Cannot receive from tcp socket");
 	    received_bytes += ret;
 	    
 	    if(ret==0) break;
 	}
-	//if(DEBUG) printf("*** Bytes received : %d \n" , ret);
 
 	return received_bytes;
 }
@@ -221,14 +218,15 @@ void closeSocket(int fd) {
 	int ret;
 		
 	if (fd >= 0) {
-	   if (shutdown(fd, SHUT_RDWR) < 0){ // terminate the 'reliable' delivery, SHUT_RDWR makes impossible to receive and send on socket
+	   if (shutdown(fd, SHUT_RDWR) < 0){ 
+
 		 if (errno != ENOTCONN && errno != EINVAL){
-			ERROR_HELPER(-1,"Error: shutdown faild");
+			ERROR_HELPER(-1,"Fallito shutdown");
 		 }
 	   }
 			
-	  if (close(fd) < 0) // finally call close()
-         ERROR_HELPER( -1,"Error: close socket failed");
+	  if (close(fd) < 0) 
+         ERROR_HELPER( -1,"Fallita chiusura");
    }
 }
 
@@ -265,8 +263,6 @@ void Server_socketClose(ListHead* l){
 		ServerListItem* v = (ServerListItem*) item;
 		int client_desc = v->info;
 		
-		//if(DEBUG) fprintf(stdout,"closing socket...%d\n", client_desc);
-		//fflush(stdout);
 		closeSocket(client_desc);
 		item = item->next;
 	}

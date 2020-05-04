@@ -35,7 +35,7 @@ void signal_handler(int sig){
 	sleep(1);
 	
 	if(DEBUG){
-		fprintf(stdout,"\nClosing server ...\n");
+		fprintf(stdout,"\nServer chiuso\n");
 		fflush(stdout);
 	}
 	
@@ -63,14 +63,16 @@ void *tcp_client_handler(void *arg){
 		int ret = tcp_receive(socket , buf);  
 		
 		if(ret == -1){
-			if(run_server == 0){ // server is closing
+
+			// chiusura del server 
+			if(run_server == 0){ 
 				run = 0;
 				break;
 			}
 			ERROR_HELPER(ret, "Cannot receive from tcp socket");
 		}
 		
-		else if(!ret) run = 0; // client disconected
+		else if(!ret) run = 0; // client disconnesso
 		
 		else {
 
@@ -171,8 +173,10 @@ int main(int argc, char **argv) {
 	char* vehicle_texture_filename=argv[3];
 	
 	struct sockaddr_in si_me;
-	udp_socket = udp_server_setup(&si_me);  //initialize udp connection
-	socket_desc = tcp_server_setup();       //initialize tcp connection
+
+	// creo le connessioni udp e tcp lato server 
+	udp_socket = udp_server_setup(&si_me);  
+	socket_desc = tcp_server_setup();       
 	
 	// load the images
 	surface_elevation = Image_load(elevation_filename);
@@ -188,7 +192,7 @@ int main(int argc, char **argv) {
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
 	
 	run_server = 1;
-	signal(SIGINT,signal_handler);
+	signal(SIGINT,signal_handler);  // funzione ausiliaria
 	List_init(&socket_list);
 	
 	int id = 1;
