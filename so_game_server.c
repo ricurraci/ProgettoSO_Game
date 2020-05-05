@@ -14,6 +14,7 @@
 
 #include "utils.h"
 
+
 World world;
 Image* surface_texture;
 Image* surface_elevation;
@@ -163,14 +164,17 @@ void *udp_handler(void *arg) {
 
 int main(int argc, char **argv) {
 	
-	if (argc<4) {
+	if (argc<3) {
 	printf("usage: %s <elevation_image> <texture_image> <vehicle_texture>\n", argv[1]);
 		exit(-1);
 	}
 
 	char* elevation_filename=argv[1];
 	char* texture_filename=argv[2];
-	char* vehicle_texture_filename=argv[3];
+	char* vehicle_texture_filename="./images/arrow-right.ppm";
+    printf("loading elevation image from %s ... ", elevation_filename);
+
+
 	
 	struct sockaddr_in si_me;
 
@@ -178,15 +182,31 @@ int main(int argc, char **argv) {
 	udp_socket = udp_server_setup(&si_me);  
 	socket_desc = tcp_server_setup();       
 	
-	// load the images
-	surface_elevation = Image_load(elevation_filename);
-	surface_texture = Image_load(texture_filename);
-	vehicle_texture = Image_load(vehicle_texture_filename);
-	
-	if(!surface_elevation || !surface_texture || !vehicle_texture) {
-		fprintf(stderr,"Errore nel caricamento delle immagini di default\n");
-		exit(EXIT_FAILURE);
-	}
+    // load the images
+    surface_elevation = Image_load(elevation_filename);
+    if (surface_elevation) {
+      printf("Done! \n");
+    } else {
+      printf("Fail! \n");
+    }
+
+
+    printf("loading texture image from %s ... ", texture_filename);
+    surface_texture = Image_load(texture_filename);
+    if (surface_texture) {
+      printf("Done! \n");
+    } else {
+      printf("Fail! \n");
+    }
+
+    printf("loading vehicle texture (default) from %s ... ", vehicle_texture_filename);
+    vehicle_texture = Image_load(vehicle_texture_filename);
+    if (vehicle_texture) {
+      printf("Done! \n");
+    } else {
+      printf("Fail! \n");
+    }
+
 	
 	// creating the world
 	World_init(&world, surface_elevation, surface_texture, 0.5, 0.5, 0.5);
@@ -220,8 +240,11 @@ int main(int argc, char **argv) {
 		if(client_desc == -1 && run_server == 0) break;    // server is closing
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 				
+		// create a vehicle
 		Vehicle *vehicle=(Vehicle*) malloc(sizeof(Vehicle));
 		Vehicle_init(vehicle, &world, id, vehicle_texture);
+
+		// add it to the world
 		World_addVehicle(&world, vehicle);
 		
 		Server_addSocket(&socket_list , client_desc);
@@ -247,12 +270,17 @@ int main(int argc, char **argv) {
 	ret = pthread_join(udp_thread, NULL);
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	
-	World_destroy(&world);
+
+	// check out the images not needed anymore
 	Image_free(surface_elevation);
 	Image_free(surface_texture);
 	Image_free(vehicle_texture);
 	free(client_addr);
 	free(udp_args);
+
+	// cleanup
+	World_destroy(&world);
+
 	
 
 	exit(EXIT_SUCCESS); 
