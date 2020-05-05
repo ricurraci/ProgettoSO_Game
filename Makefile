@@ -55,10 +55,10 @@ server: ./so_game_server.c ./libso_game.a
 client: ./so_game_client.c ./libso_game.a 
 	$(CC) $(CCOPTS) -Ofast -o ./$@ $^ $(LIBS) 
 
-test_server:
+start_server:
 	./server ./images/test.pgm ./images/test.ppm ./images/arrow-right.ppm
 
-test_client:
+start_client:
 	./client 127.0.0.1
 
 

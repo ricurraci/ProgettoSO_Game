@@ -12,6 +12,12 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
+#include "image.h"
+#include "surface.h"
+#include "world.h"
+#include "vehicle.h"
+#include "world_viewer.h"
+
 #include "utils.h"
 
 
@@ -281,9 +287,6 @@ int main(int argc, char **argv) {
 	// cleanup
 	World_destroy(&world);
 
-	
-
-	exit(EXIT_SUCCESS); 
 }
 
 
