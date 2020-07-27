@@ -1,4 +1,4 @@
-#include <GL/glut.h> // not needed here
+#include <GL/glut.h> 
 #include <math.h>
 #include <string.h>
 #include <stdio.h>
@@ -8,7 +8,6 @@
 #include <errno.h>
 #include <signal.h>
 
-// for the udp_socket
 #include <arpa/inet.h>
 #include <sys/socket.h>
 
@@ -26,7 +25,7 @@ Image* surface_texture;
 Image* surface_elevation;
 Image* vehicle_texture;
 
-int run_server;
+int run_server;  // variabili ausiliarie 
 int socket_desc; 
 int udp_socket;  
 
@@ -56,18 +55,18 @@ void signal_handler(int sig){
 	closeSocket(socket_desc);
 }
 
-void *tcp_client_handler(void *arg){
+void *tcp_client_handler(void *arg){  // funzione che prende i dati dal client
 
 	thread_args* args = (thread_args*)arg;
 	
 	int socket = args->socket_desc;
-	char buf[BUFLEN];
+	char buf[BUFLEN];   // lungh buffer
     int run = 1;
-    int client_id = args->id;
+    int client_id = args->id;    // id del client
 
     while(run && run_server) {
 		
-		int ret = tcp_receive(socket , buf);  
+		int ret = tcp_receive(socket , buf);   // funz in utils
 		
 		if(ret == -1){
 
@@ -79,13 +78,15 @@ void *tcp_client_handler(void *arg){
 			ERROR_HELPER(ret, "Cannot receive from tcp socket");
 		}
 		
-		else if(!ret) run = 0; // client disconnesso
+		else if(!ret) run = 0; // client disconnesso  
 		
 		else {
 
 			PacketHeader* packet = (PacketHeader*) Packet_deserialize(buf , ret);
 			
-			switch(packet->type) {
+			switch(packet->type) {  // switcha in base al tipo di pacchetto ricevuto 
+				
+				// tcp send in utils
 				
 				case GetId: { 
 					IdPacket* id_packet = id_packet_init(GetId, client_id);
@@ -126,14 +127,14 @@ void *tcp_client_handler(void *arg){
 		}
 	}	
 
-	Vehicle *v = World_getVehicle(&world, args->id);
+	Vehicle *v = World_getVehicle(&world, args->id); 
 
 	World_detachVehicle(&world, v);
 	update_info(&world, args->id, 0);
 	Vehicle_destroy(v);
 	free(args);
 	
-	if(run_server) { // if run_server == 0 server is closing, no detachSocket and close needed
+	if(run_server) { // if run_server == 0 server sta chiudendo, no detachSocket e close
 		Server_detachSocket(&socket_list , socket);
 		int ret = close(socket);
 		ERROR_HELPER(ret, "Cannot close socket");
@@ -144,7 +145,9 @@ void *tcp_client_handler(void *arg){
 
 }
 
-void *udp_handler(void *arg) {
+void *udp_handler(void *arg) {  // funzione che gestisce le azioni del thread in pthread create
+	
+	// manda e riceve i pacchetti 
 	
 	struct sockaddr_in udp_client_addr;
 	int udp_socket = ((thread_args*)arg)->socket_desc;
@@ -153,13 +156,13 @@ void *udp_handler(void *arg) {
 	char buffer[BUFLEN];
 	
 	while(run_server) {
-		res = udp_receive(udp_socket, &udp_client_addr, buffer);
+		res = udp_receive(udp_socket, &udp_client_addr, buffer);   // in utils
 		VehicleUpdatePacket* vehicle_packet = (VehicleUpdatePacket*)Packet_deserialize(buffer, res);
 		
 		world_update(vehicle_packet, &world);
 		WorldUpdatePacket* world_packet = world_update_init(&world);		
 		
-		udp_send(udp_socket, &udp_client_addr, &world_packet->header);
+		udp_send(udp_socket, &udp_client_addr, &world_packet->header);  // in utils 
 		
 	}
 	pthread_exit(NULL);
@@ -181,12 +184,12 @@ int main(int argc, char **argv) {
     printf("loading elevation image from %s ... ", elevation_filename);
 
 
-	
+
 	struct sockaddr_in si_me;
 
 	// creo le connessioni udp e tcp lato server 
-	udp_socket = udp_server_setup(&si_me);  
-	socket_desc = tcp_server_setup();       
+	udp_socket = udp_server_setup(&si_me);   // in utils 
+	socket_desc = tcp_server_setup();       // in utils        
 	
     // load the images
     surface_elevation = Image_load(elevation_filename);
@@ -224,26 +227,26 @@ int main(int argc, char **argv) {
 	int id = 1;
 	int ret, client_desc;
 	
-	//Creating udp thread
+	//Creo il thread udp 
 	thread_args* udp_args = (thread_args*)malloc(sizeof(thread_args));
 	udp_args->socket_desc = udp_socket;
-	udp_args->id = -1;
+	udp_args->id = -1; 
 	
-	ret = pthread_create(&udp_thread, NULL, udp_handler, (void*)udp_args);
+	ret = pthread_create(&udp_thread, NULL, udp_handler, (void*)udp_args); // udp handler ausiliaria
 	PTHREAD_ERROR_HELPER(ret, "Cannot create the udp_thread!");
 
-	int sockaddr_len = sizeof(struct sockaddr_in); // we will reuse it for accept()
+	int sockaddr_len = sizeof(struct sockaddr_in); // accept() la richiede 
 
-	// we allocate client_addr dynamically and initialize it to zero
+	// allocazione dei client 
 	struct sockaddr_in *client_addr = calloc(1, sizeof(struct sockaddr_in));
 	
 	
 	while (run_server) {		
 		
-		// accept incoming connection
+		// accetto le connessioni 
 		client_desc = accept(socket_desc, (struct sockaddr *)client_addr, (socklen_t *)&sockaddr_len);
-		if (client_desc == -1 && errno == EINTR) continue; // check for interruption by signals
-		if(client_desc == -1 && run_server == 0) break;    // server is closing
+		if (client_desc == -1 && errno == EINTR) continue; // check interrupt dai signals
+		if(client_desc == -1 && run_server == 0) break;    // server in chiusura = 0 
 		ERROR_HELPER(client_desc, "Cannot open socket for incoming connection");
 				
 		// create a vehicle
@@ -255,16 +258,18 @@ int main(int argc, char **argv) {
 		
 		Server_addSocket(&socket_list , client_desc);
 
+		// creo il thread per i client 
+		
 		pthread_t client_thread;
 		thread_args* args = (thread_args*)malloc(sizeof(thread_args));
 		args->socket_desc = client_desc;
-		args->id = id;  //here assigned id to client
+		args->id = id;  // id corrispondente al giocatore client 
 
 		update_info(&world, id, 1);
 		
 		id++;
 		
-		ret = pthread_create(&client_thread, NULL, tcp_client_handler, (void*)args);
+		ret = pthread_create(&client_thread, NULL, tcp_client_handler, (void*)args);  // tcp client handler 
 		PTHREAD_ERROR_HELPER(ret, "Could not create a new thread");
 
 		ret = pthread_detach(client_thread); 
@@ -277,7 +282,7 @@ int main(int argc, char **argv) {
 	PTHREAD_ERROR_HELPER(ret, "Cannot join the udp_thread!");
 	
 
-	// check out the images not needed anymore
+	// check out the images not needed anymore, stock
 	Image_free(surface_elevation);
 	Image_free(surface_texture);
 	Image_free(vehicle_texture);

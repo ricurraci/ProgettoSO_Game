@@ -16,7 +16,7 @@
 // FUNZIONI SERVER 
 
 
-int udp_server_setup(struct sockaddr_in *si_me) {
+int udp_server_setup(struct sockaddr_in *si_me) {   // setup della connessione 
 
 	
 	int sock = socket(AF_INET, SOCK_DGRAM, 0);
@@ -44,7 +44,7 @@ void udp_send(int socket, struct sockaddr_in *si, const PacketHeader* h) {
 	char buffer[BUFLEN];
 	char size = 0;
 
-	switch(h->type) {
+	switch(h->type) {        // tipo di pacchetto da inviare 
 		case VehicleUpdate:
 		{
 			VehicleUpdatePacket *vup = (VehicleUpdatePacket*) h;
@@ -74,10 +74,10 @@ int udp_receive(int socket, struct sockaddr_in *si, char *buffer) {
 }
 
 
-int tcp_server_setup(void) {
+int tcp_server_setup(void) {    // setup della connessione tcp nel main
 	
 	
-	struct sockaddr_in server_addr = {0};
+	struct sockaddr_in server_addr = {0}; 
 
 	// serve per accept
 
@@ -87,9 +87,9 @@ int tcp_server_setup(void) {
 	int socket_desc = socket(AF_INET, SOCK_STREAM, 0);
 	ERROR_HELPER(socket_desc, "Could not create socket");
 
-	server_addr.sin_addr.s_addr = INADDR_ANY; // we want to accept connections from any interface
+	server_addr.sin_addr.s_addr = INADDR_ANY; // accetto le connessioni
 	server_addr.sin_family = AF_INET;
-	server_addr.sin_port = htons(TCP_PORT); // network byte order!
+	server_addr.sin_port = htons(TCP_PORT); // network byte order
 
 	// SO_REUSEADDR serve per il crash
 	int reuseaddr_opt = 1;
@@ -110,13 +110,13 @@ int tcp_server_setup(void) {
 
 
 
-void tcp_send(int socket_desc, PacketHeader* packet){
+void tcp_send(int socket_desc, PacketHeader* packet){  // funz in tcp handler
 	int ret;	
 	char to_send[BUFLEN];
 	char len_to_send[BUFLEN];
 	
 	int len =  Packet_serialize(to_send, packet);
-	snprintf(len_to_send, BUFLEN , "%d", len);
+	snprintf(len_to_send, BUFLEN , "%d", len); 
 	
 	
 	ret = send(socket_desc, len_to_send, sizeof(long int) , 0);
@@ -132,21 +132,22 @@ void tcp_send(int socket_desc, PacketHeader* packet){
 
 
 
-int tcp_receive(int socket_desc , char* msg) {
+int tcp_receive(int socket_desc , char* msg) {  // funz in tcp handler 
 	
 	int ret;
 	char len_to_receive[BUFLEN];
 	
-	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);
+	ret = recv(socket_desc , len_to_receive , sizeof(long int) , 0);  // riceve messaggi dal socket
 	ERROR_HELPER(ret, "impossible ricevere dalla socket tcp");
 	
 	int received_bytes = 0;
-	int to_receive = atoi(len_to_receive);
+	int to_receive = atoi(len_to_receive);  // stringa a intero
 
 	
-	while(received_bytes < to_receive){
+	while(received_bytes < to_receive){ 
 		ret = recv(socket_desc , msg + received_bytes , to_receive - received_bytes , 0);
 		if(ret < 0 && errno == EINTR) continue;
+		if(ret < 0) return ret;
 		if(ret < 0) return ret;
 		
 	    received_bytes += ret;
