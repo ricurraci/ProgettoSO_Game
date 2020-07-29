@@ -35,7 +35,7 @@ int main(int argc, char **argv) {
 
 // FORSE ERRORE QUI
 
-/**  printf("loading texture image from %s ... ", argv[2]);
+  printf("loading texture image from %s ... ", argv[2]);
   Image* my_texture = Image_load(argv[2]);
   if (my_texture) {
     printf("Done! \n");
@@ -43,7 +43,7 @@ int main(int argc, char **argv) {
     printf("Fail! \n");
   }
 
-**/
+
  
   // todo: connect to the server
   //   -get ad id
@@ -51,14 +51,14 @@ int main(int argc, char **argv) {
   //   -get an elevation map
   //   -get the texture of the surface
 
-  // these come from the server
+  // dal server
   int my_id = -1;
-  Image* map_elevation;
+  Image* map_elevation; //image.h
   Image* map_texture;
-  //Image* my_texture_from_server;
+  Image* my_texture_from_server;
   Image* vehicle_texture;
   
-  vehicle_texture = get_vehicle_texture(); // Da creare ancora la funzione
+  vehicle_texture = get_vehicle_texture(); // Funzione carica texture del veicolo e presentazione progetto
   char* buf= (char*)malloc(sizeof(char) *BUFLEN); 
   int socket_desc = tcp_client_setup();
   
@@ -73,9 +73,9 @@ int main(int argc, char **argv) {
   clear(buf);
   IdPacket* id_packet = id_packet_init(GetId, my_id);
   
-  tcp_send(socket_desc, &id_packet->header); // richiesta id 
-  ret= tcp_receive(socket_desc,buf); // riceve id
-  ERROR_HELPER(ret,"Cannot receive from tcp socket");
+  tcp_send(socket_desc, &id_packet->header); // richiesta id utils tcpsend
+  ret= tcp_receive(socket_desc,buf); // riceve id utils tcpreceive
+  ERROR_HELPER(ret,"Impossibile ricevere da tcp socket");
   
   Packet_free(&id_packet->header); // liberare l'header del pacchetto per riusarlo per ricevere l'id
   
@@ -83,13 +83,12 @@ int main(int argc, char **argv) {
   
   my_id= id_packet->id;
   //if(DEBUG) printf("Id received : &d\n", my_id);
-  printf("bella");
+  //printf("prova");
   Packet_free(&id_packet->header);
-  printf("bella fra");
   clear(buf);
   // richiesta del vehicle texture
   
-  ImagePacket* vehicleTexture_packet;
+  ImagePacket* vehicleTexture_packet; // imagepacket in protocol.h
   
   if(vehicle_texture) {
     vehicleTexture_packet = image_packet_init(PostTexture, vehicle_texture, my_id);    // client sceglie di utilizzare una sua immagine
@@ -98,7 +97,7 @@ int main(int argc, char **argv) {
     vehicleTexture_packet = image_packet_init(GetTexture, NULL, my_id); //client sceglie immagine di default
     tcp_send(socket_desc , &vehicleTexture_packet->header); 
     ret = tcp_receive(socket_desc , buf);
-    ERROR_HELPER(ret, "Cannot receive from tcp socket");
+    ERROR_HELPER(ret, "Impossibile ricevere da tcp socket");
     
     Packet_free(&vehicleTexture_packet->header); // libera per utilizzare stesso vehicletexturepack per ricevere
     vehicleTexture_packet = (ImagePacket*)Packet_deserialize(buf, ret);
@@ -113,16 +112,15 @@ int main(int argc, char **argv) {
     }
 
  // richiesta elevation map
- printf("bella fra 3");
  clear(buf);
- printf("bella fra 2");
- ImagePacket* elevationmap_packet= image_packet_init(GetElevation, NULL, 0);
+ //printf("prova 2");
+ ImagePacket* elevationmap_packet= image_packet_init(GetElevation, NULL, 0);// vedere in utils
  tcp_send(socket_desc, &elevationmap_packet->header); // vedere elevationmap
  
  ret = tcp_receive(socket_desc , buf);
- ERROR_HELPER(ret, "Cannot receive from tcp socket");
+ ERROR_HELPER(ret, "Impossibile ricevere da tcp socket");
 
-  Packet_free(&elevationmap_packet->header); // libera per utilizzare stesso elevionmappacket per ricevere
+  Packet_free(&elevationmap_packet->header); // libera per utilizzare stesso elevionmappacket(imagepacket) per ricevere
   elevationmap_packet = (ImagePacket*)Packet_deserialize(buf, ret);
     
     if( (elevationmap_packet->header).type != PostElevation || elevationmap_packet->id != 0) {
@@ -138,7 +136,7 @@ int main(int argc, char **argv) {
  tcp_send(socket_desc, &surftexture_packet->header);
  
  ret = tcp_receive(socket_desc, buf);
- ERROR_HELPER(ret, "Cannot receive from tcp socket");
+ ERROR_HELPER(ret, "Impossibile ricevere da tcp socket");
 
  Packet_free(&surftexture_packet->header); // libero per riutilizarlo
  surftexture_packet = (ImagePacket*)Packet_deserialize(buf , ret);
@@ -146,7 +144,7 @@ int main(int argc, char **argv) {
   if ((surftexture_packet->header).type != PostTexture || surftexture_packet->id != 0)  {
       fprintf(stderr, "Error: image corrupted");
       exit(EXIT_FAILURE);
-    } //rivedere
+    } 
   
   map_texture = surftexture_packet->image;
 		  
@@ -155,7 +153,7 @@ int main(int argc, char **argv) {
   
 
   // construct the world
-  World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5);
+  World_init(&world, map_elevation, map_texture, 0.5, 0.5, 0.5); // tutto in world.c
   vehicle=(Vehicle*) malloc(sizeof(Vehicle));
   Vehicle_init(vehicle, &world, my_id, vehicle_texture);
   World_addVehicle(&world, vehicle);
@@ -213,7 +211,7 @@ void *updater_thread(void *args) {
 
 	// creazione socket udp
 	struct sockaddr_in si_other;
-	udp_socket = udp_client_setup(&si_other); 
+	udp_socket = udp_client_setup(&si_other); // vedere utils
 
     int ret;
 
@@ -249,9 +247,9 @@ void *connection_checker_thread(void* args){
 
 		ret = recv(tcp_desc , &c , 1 , MSG_PEEK); // funziona solo se ret recv = 0
 		if(ret < 0 && errno == EINTR) continue;
-		ERROR_HELPER(ret , "<Errore in connection checker"); 
+		ERROR_HELPER(ret , "<Errore  connection checker"); 
 		
-		if(ret == 0) break; // server has quit
+		if(ret == 0) break; // server chiuso
 		usleep(30000);
 	}
 
@@ -260,7 +258,7 @@ void *connection_checker_thread(void* args){
  	ret = pthread_cancel(runner_thread);                                                            // udp non più necessario
 	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Errore: cancellazione runner_thread non riuscito "); // if errno = ESRCH thread già chiuso
 	
-	Client_siglePlayerNotification(); // chiusura client , aggiungere funzione modif
+	Client_siglePlayerNotification(); // chiusura client , aggiungere funzione modif in utils
 	
 	ListItem* item = arg->world->vehicles.first;
 	
