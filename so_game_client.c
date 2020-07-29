@@ -55,7 +55,7 @@ int main(int argc, char **argv) {
   int my_id = -1;
   Image* map_elevation; //image.h
   Image* map_texture;
-  Image* my_texture_from_server;
+  //Image* my_texture_from_server;
   Image* vehicle_texture;
   
   vehicle_texture = get_vehicle_texture(); // Funzione carica texture del veicolo e presentazione progetto
