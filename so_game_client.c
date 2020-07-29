@@ -33,15 +33,7 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-// FORSE ERRORE QUI
 
-  printf("loading texture image from %s ... ", argv[2]);
-  Image* my_texture = Image_load(argv[2]);
-  if (my_texture) {
-    printf("Done! \n");
-  } else {
-    printf("Fail! \n");
-  }
 
 
  
