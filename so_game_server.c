@@ -48,10 +48,10 @@ void signal_handler(int sig){
 	int ret = pthread_cancel(udp_thread);
 	if(ret < 0 && errno != ESRCH) PTHREAD_ERROR_HELPER(ret , "Error: pthread_cancel udp thread failed");
 	
-	Server_socketClose(&socket_list);
-	Server_listFree(&socket_list);
+	Server_socketClose(&socket_list);   // in utils, funziona con le liste 
+	Server_listFree(&socket_list);  // in utils
 	
-	closeSocket(udp_socket);
+	closeSocket(udp_socket);  // in utils
 	closeSocket(socket_desc);
 }
 
@@ -89,7 +89,7 @@ void *tcp_client_handler(void *arg){  // funzione che prende i dati dal client
 				// tcp send in utils
 				
 				case GetId: { 
-					IdPacket* id_packet = id_packet_init(GetId, client_id);
+					IdPacket* id_packet = id_packet_init(GetId, client_id);  // in utils
 					tcp_send(socket, &id_packet->header); 
 					free(id_packet);
 					break;
@@ -135,7 +135,7 @@ void *tcp_client_handler(void *arg){  // funzione che prende i dati dal client
 	free(args);
 	
 	if(run_server) { // if run_server == 0 server sta chiudendo, no detachSocket e close
-		Server_detachSocket(&socket_list , socket);
+		Server_detachSocket(&socket_list , socket);  // rimuove la socket dalla lista 
 		int ret = close(socket);
 		ERROR_HELPER(ret, "Cannot close socket");
     }
@@ -256,7 +256,7 @@ int main(int argc, char **argv) {
 		// add it to the world
 		World_addVehicle(&world, vehicle);
 		
-		Server_addSocket(&socket_list , client_desc);
+		Server_addSocket(&socket_list , client_desc);  // in utils, aggiunge il client alla lista 
 
 		// creo il thread per i client 
 		

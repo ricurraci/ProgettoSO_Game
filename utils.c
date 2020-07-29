@@ -161,7 +161,7 @@ int tcp_receive(int socket_desc , char* msg) {  // funz in tcp handler
 
 
 
-void update_info(World *world, int id, int flag) {
+void update_info(World *world, int id, int flag) {    // gestisce le informazioni visualizzate nel terminale
 
 	time_t ttime;
 	struct tm * timeinfo;
@@ -185,7 +185,7 @@ void update_info(World *world, int id, int flag) {
 }
 
 
-ServerListItem* ServerListItem_init(int sock){
+ServerListItem* ServerListItem_init(int sock){    // inizializza la lista di id 
 	ServerListItem* item = (ServerListItem*) malloc(sizeof(ServerListItem));
 	item->info = sock;
 	item->list.prev = NULL;
@@ -203,7 +203,7 @@ ServerListItem* get_servsock(ListHead* l, int sock){
 }
 
 
-void Server_detachSocket(ListHead* l, int sock){
+void Server_detachSocket(ListHead* l, int sock){   // rimuove la socket dalla lista
 	ServerListItem* to_remove = Server_getSocket(l,sock);
 	List_detach(l, (ListItem*)to_remove);
 }
@@ -231,7 +231,7 @@ void closeSocket(int fd) {
    }
 }
 
-ServerListItem* Server_getSocket(ListHead* l, int sock){
+ServerListItem* Server_getSocket(ListHead* l, int sock){  // funz ausiliaria per rimuovere con la detach
 	ListItem* item = l->first;
 	while(item){
 		ServerListItem* v=(ServerListItem*)item;
