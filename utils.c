@@ -278,11 +278,11 @@ void Server_socketClose(ListHead* l){
 
 
 
-void world_update(VehicleUpdatePacket *vehicle_packet, World *world) {
+void world_update(VehicleUpdatePacket *vehicle_packet, World *world) { 
 	
 	int id = vehicle_packet->id;
 		
-	Vehicle* v = World_getVehicle(world, id);
+	Vehicle* v = World_getVehicle(world, id); // world.c, 
 	v->rotational_force_update = vehicle_packet->rotational_force;
 	v->translational_force_update = vehicle_packet->translational_force; 
 
@@ -290,7 +290,7 @@ void world_update(VehicleUpdatePacket *vehicle_packet, World *world) {
 }
 
 
-ImagePacket* image_packet_init(Type type, Image *image, int id) {  // temporaneo so_game_protocol.h nell'include, aggiungerlo dopo
+ImagePacket* image_packet_init(Type type, Image *image, int id) {  // inizializzazione del pacchetto per gestione texture 
       ImagePacket *packet = (ImagePacket*)malloc(sizeof(ImagePacket));
       PacketHeader header;
       header.type= type;
@@ -303,7 +303,7 @@ ImagePacket* image_packet_init(Type type, Image *image, int id) {  // temporaneo
 
 
 
-VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotational_force, float translational_force) {
+VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotational_force, float translational_force) {  // inizializzazione del pacchetto per gestire il veicolo
     
     VehicleUpdatePacket *vehicle_packet = (VehicleUpdatePacket*)malloc(sizeof(VehicleUpdatePacket));
 	PacketHeader v_head;
@@ -311,7 +311,7 @@ VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotation
 
 	vehicle_packet->header = v_head;
 	vehicle_packet->id = arg_id;
-	vehicle_packet->rotational_force = (World_getVehicle(world, arg_id))->rotational_force_update;
+	vehicle_packet->rotational_force = (World_getVehicle(world, arg_id))->rotational_force_update; // assegna i parametri fisici al veicolo(funzione già presente)
 	vehicle_packet->translational_force = (World_getVehicle(world, arg_id))->translational_force_update;
 
 	return vehicle_packet;
@@ -319,12 +319,13 @@ VehicleUpdatePacket* vehicle_update_init(World *world,int arg_id, float rotation
 
 
 
-int udp_client_setup(struct sockaddr_in *si_other) {
+int udp_client_setup(struct sockaddr_in *si_other) { // creazione socket udp
 	
-    int sock = socket(AF_INET, SOCK_DGRAM, 0);
+    int sock = socket(AF_INET, SOCK_DGRAM, 0); // crea una socket
+// parametri per la connessione
     
     si_other->sin_family = AF_INET;
-    si_other->sin_port = htons(UDP_PORT);
+    si_other->sin_port = htons(UDP_PORT); //htons funzione che converte in network byte order
     si_other->sin_addr.s_addr = inet_addr(SERVER_ADDRESS);	
 
 	return sock;
@@ -401,13 +402,13 @@ Image* get_vehicle_texture() {
 	Image* my_texture;
 	char image_path[256];
 	
-	fprintf(stdout, "\nOPERATING SYSTEM PROJECT 2020 - CLIENT SIDE ***\n\n"); // modificare dopo
+	fprintf(stdout, "\nProgetto Sistemi Operativi 2020 \n\n"); // modificare dopo
 	fflush(stdout);
-	fprintf(stdout, "\nWelcome!\nThanks for joining, you will be soon connected to the game server.\n");
-	fprintf(stdout, "First, you can choose to use your own image. Only .ppm images are supported.\n");
+	fprintf(stdout, "\nPresto sarai connesso al server\n");
+	fprintf(stdout, "Puoi scegliere di usare una tua immagine, solo le immagini .ppm sono supportate\n");
 	
 	while(1){
-		fprintf(stdout, "Insert path ('no' for default vehicle image) ('q' to exit) :\n");
+		fprintf(stdout, "Inserire il path ('no' per immagine veicolo default) ('q' per uscire) :\n");
 		if(scanf("%s",image_path) < 0){
 			fprintf(stderr, "Error occured!\n");
 			exit(EXIT_FAILURE);
@@ -417,7 +418,7 @@ Image* get_vehicle_texture() {
 		else {
 			char *dot = strrchr(image_path, '.');
 			if (dot == NULL || strcmp(dot, ".ppm")!=0){
-				fprintf(stderr,"Sorry! Image not found or not supported... \n");
+				fprintf(stderr,"Immagine non trovata o non supportata\n");
 			}
 			else{
 				my_texture = Image_load(image_path);
@@ -425,14 +426,14 @@ Image* get_vehicle_texture() {
 					printf("Done! \n");
 					return my_texture;
 				} else {
-					fprintf(stderr,"Sorry! Chose image cannot be loaded... \n");
+					fprintf(stderr,"L'immagine scelta non può essere caricata \n");
 					exit(EXIT_FAILURE);
 				}
 			}
 		}
 		usleep(3000);
 	}
-	return NULL; // will never be reached
+	return NULL; 
 }
 
 
@@ -448,20 +449,20 @@ void Client_siglePlayerNotification(void){
 int tcp_client_setup(void){
 	int ret;
 
-	// variables for handling a socket
+	// variabili per socket
 	int socket_desc;
-	struct sockaddr_in server_addr = {0}; // some fields are required to be filled with 0
+	struct sockaddr_in server_addr = {0}; // alcuni spazi hanno bisogno di essere riempiti con 0
 
-	// create a socket
+	// crea una socket
 	socket_desc = socket(AF_INET, SOCK_STREAM, 0);
 	ERROR_HELPER(socket_desc, "Could not create socket");
 
-	// set up parameters for the connection
+	// parametri per la connessione
 	server_addr.sin_addr.s_addr = inet_addr(SERVER_ADDRESS);
 	server_addr.sin_family      = AF_INET;
 	server_addr.sin_port        = htons(TCP_PORT); // network byte order!
 
-	// initiate a connection on the socket
+	// inizio connessione socket
 	ret = connect(socket_desc, (struct sockaddr*) &server_addr, sizeof(struct sockaddr_in));
 	ERROR_HELPER(ret, "Could not create connection");
 
@@ -470,7 +471,7 @@ int tcp_client_setup(void){
 	return socket_desc;
 }
 
-IdPacket* id_packet_init(Type header_type, int id){
+IdPacket* id_packet_init(Type header_type, int id){ // inizializzazione pacchetto id
 	PacketHeader id_header;
 	id_header.type = header_type;
 	

@@ -52,6 +52,7 @@ int main(int argc, char **argv) {
   
   vehicle_texture = get_vehicle_texture(); // Funzione carica texture del veicolo e presentazione progetto
   char* buf= (char*)malloc(sizeof(char) *BUFLEN); 
+// TCP socket 
   int socket_desc = tcp_client_setup();
   
   World world;
@@ -59,8 +60,8 @@ int main(int argc, char **argv) {
 
   int ret;
   
-  // TCP socket
-
+ 
+ // gets ID from the server (TCP)
   
   clear(buf);
   IdPacket* id_packet = id_packet_init(GetId, my_id);
@@ -164,10 +165,10 @@ int main(int argc, char **argv) {
 		.world = &world
 	}; // aggiunto in utils struct
 
-	ret = pthread_create(&runner_thread, NULL, updater_thread, &runner_args);
+	ret = pthread_create(&runner_thread, NULL, updater_thread, &runner_args); // update periodici
 	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create runner thread");
 		
-	ret = pthread_create(&connection_checker, NULL, connection_checker_thread, &runner_args);
+	ret = pthread_create(&connection_checker, NULL, connection_checker_thread, &runner_args); // controllo connessione periodica
 	PTHREAD_ERROR_HELPER(ret, "Error: failed pthread_create connection_checker thread");
 
  
@@ -192,7 +193,7 @@ int main(int argc, char **argv) {
   return EXIT_SUCCESS;
 
 }
-void *updater_thread(void *args) {
+void *updater_thread(void *args) { // il server riceve(udp) aggiornamenti periodici dal client 
 	
 	UpdaterArgs* arg = (UpdaterArgs*) args;
 
@@ -214,7 +215,7 @@ void *updater_thread(void *args) {
 		float r_f_update = vehicle->rotational_force_update;
 		float t_f_update = vehicle->translational_force_update;
 
-		// create vehicle_packet
+		// crea vehicle_packet
 		VehicleUpdatePacket* vehicle_packet = vehicle_update_init(world, id, r_f_update, t_f_update);
 		udp_send(udp_socket, &si_other, &vehicle_packet->header);
 		
@@ -228,8 +229,8 @@ void *updater_thread(void *args) {
 	}
 	return EXIT_SUCCESS;
 }
-
-void *connection_checker_thread(void* args){
+ 
+void *connection_checker_thread(void* args){ // controlla connessione con server, se non c'è più connessione rimuove veicolo dal mondo
 	UpdaterArgs* arg = (UpdaterArgs*) args;
 	int tcp_desc = arg->tcp_desc;
 	int ret;
@@ -259,7 +260,7 @@ void *connection_checker_thread(void* args){
 		item = item->next;
 		if(v->id != arg->id){
 			World_detachVehicle(arg->world , v);
-			update_info(arg->world, v->id , 0);
+			update_info(arg->world, v->id , 0); // utils
 		}			
 	}
 	
